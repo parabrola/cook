@@ -1,0 +1,32 @@
+global:
+  environment:
+    MY_VAR: "my var value"
+    MY_VAL: "$(ls)"
+    CSS_FILES: "styles/*.css"
+
+  events:
+    before_each:
+      - "echo 'before each 1'"
+      - "echo 'before each 2'"
+    after_each:
+      - "echo 'after each'"
+
+build-go: 
+  files: [main.go, events.go, cmd/cli/*.go]
+  run:
+    - "go run $(files)"
+
+build-css:
+  files: [$(CSS_FILES)]
+  run:
+    - "ls -la"
+
+build-all:
+  run:
+    - "this.build-go"
+    - "build-css"
+
+greet-cats:
+  run:
+    - 'echo "Hello Frey"'
+    - 'echo "Hello Sunny"'
