@@ -5,15 +5,6 @@ import (
 	"os"
 )
 
-type Ref[T comparable] struct {
-	Value T
-	Error error
-}
-
-func (e *Ref[T]) Equal(value T) bool {
-	return e.Value == value
-}
-
 func ReadYamlConfig() string {
 	content, err := os.ReadFile("goke.yml")
 

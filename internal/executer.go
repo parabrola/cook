@@ -84,15 +84,15 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 	go e.shouldDispatchRoutine(task, dispatchCh)
 	dispatch := <-dispatchCh
 
-	if dispatch.Error != nil {
-		return false, dispatch.Error
+	if dispatch.Error() != nil {
+		return false, dispatch.Error()
 	}
 
 	if dispatch.Equal(true) {
 		e.lockfile.UpdateTimestampsForFiles(task.Files)
 	}
 
-	return dispatch.Value, nil
+	return dispatch.Value(), nil
 }
 
 // Go Routine function that determines whether the stored
@@ -103,17 +103,17 @@ func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 	for _, f := range task.Files {
 		fo, err := os.Stat(f)
 		if err != nil {
-			ch <- Ref[bool]{Value: false, Error: err}
+			ch <- NewRef(false, err)
 		}
 
 		modTimeNow := fo.ModTime().Unix()
 		if lockedModTimes[f] < modTimeNow {
-			ch <- Ref[bool]{Value: true}
+			ch <- NewRef(true, nil)
 			return
 		}
 	}
 
-	ch <- Ref[bool]{Value: false}
+	ch <- NewRef(false, nil)
 }
 
 // Dispatches the individual commands of the current task,
@@ -171,11 +171,11 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 		go e.runSysCommand(cmd, *ch)
 		output := <-*ch
 
-		if output.Error != nil {
-			return output.Error
+		if output.Error() != nil {
+			return output.Error()
 		}
 
-		fmt.Print(output.Value)
+		fmt.Print(output.Value())
 	}
 
 	return nil
@@ -186,18 +186,18 @@ func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	splitCmd, err := e.parseCommandLine(c)
 
 	if err != nil {
-		ch <- Ref[string]{Value: "", Error: err}
+		ch <- NewRef("", err)
 		return
 	}
 
 	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 
 	if err != nil {
-		ch <- Ref[string]{Value: "", Error: err}
+		ch <- NewRef("", err)
 		return
 	}
 
-	ch <- Ref[string]{Value: "\n" + string(out) + "\n"}
+	ch <- NewRef("\n"+string(out)+"\n", nil)
 }
 
 func (e *Executer) logErr(err error) {
