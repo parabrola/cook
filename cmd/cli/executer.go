@@ -60,12 +60,27 @@ func (e *Executer) Execute(arg string) {
 	e.spinner.Stop()
 }
 
+// Checks whether files have changed since the last run.
+// Also updates the lockfile if files did get modified.
 func (e *Executer) shouldDispatch(task Task) bool {
 	if len(task.Files) == 0 {
 		return true
 	}
 
-	dispatch := false
+	dispatchCh := make(chan bool)
+	go e.shouldDispatchRoutine(task, dispatchCh)
+	dispatch := <-dispatchCh
+
+	if dispatch {
+		e.lockfile.UpdateTimestampsForFiles(task.Files)
+	}
+
+	return dispatch
+}
+
+// Go Routine function that determines whether the stored
+// mtime is greater  than mtime if the file at this moment.
+func (e *Executer) shouldDispatchRoutine(task Task, ch chan bool) {
 	lockedModTimes := e.lockfile.GetCurrentProject()
 
 	for _, f := range task.Files {
@@ -76,18 +91,16 @@ func (e *Executer) shouldDispatch(task Task) bool {
 
 		modTimeNow := fo.ModTime().Unix()
 		if lockedModTimes[f] < modTimeNow {
-			dispatch = true
+			ch <- true
 			break
 		}
 	}
 
-	if dispatch {
-		e.lockfile.UpdateTimestampsForFiles(task.Files)
-	}
-
-	return dispatch
+	ch <- false
 }
 
+// Dispatches the individual commands of the current task
+// including and events that need to be run.
 func (e *Executer) dispatchCommands(task Task) {
 	outputs := make(chan string)
 	for _, mainCmd := range task.Run {
@@ -124,6 +137,7 @@ func (e *Executer) runSysCommand(c string, outChan chan string) {
 	outChan <- "\n" + string(out) + "\n"
 }
 
+// Parses the command string into an array of [command, args, args]...
 func (e *Executer) parseCommandLine(command string) ([]string, error) {
 	var args []string
 	state := "start"
