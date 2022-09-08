@@ -9,7 +9,7 @@ import (
 func main() {
 	clearCache := len(os.Args) > 2 && os.Args[2] == "-c"
 
-	p := app.NewParser(clearCache)
+	p := app.NewParser(app.ReadYamlConfig(), clearCache)
 	p.Bootstrap()
 
 	l := app.Lockfile{Files: p.FilePaths}

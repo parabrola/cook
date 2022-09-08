@@ -12,8 +12,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var yamlConfig = ReadYamlConfig()
-
 type Task struct {
 	Name  string
 	Files []string `yaml:"files,omitempty"`
@@ -39,14 +37,15 @@ const osCommandRegexp = `\$\(([\w\d]+)\)`
 var parserString string
 
 type Parser struct {
-	Tasks     taskList
-	FilePaths []string
+	Tasks      taskList
+	FilePaths  []string
+	YAMLConfig string
 	Global
 }
 
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(clearCache bool) Parser {
+func NewParser(YAMLConfig string, clearCache bool) Parser {
 	tempFile := path.Join(os.TempDir(), getTempFileName())
 
 	// Clear cache if CLI flag was provided.
@@ -54,8 +53,11 @@ func NewParser(clearCache bool) Parser {
 		os.Remove(tempFile)
 	}
 
+	parser := Parser{}
+	parser.YAMLConfig = YAMLConfig
+
 	if !FileExists(tempFile) {
-		return Parser{}
+		return parser
 	}
 
 	pBytes, err := os.ReadFile(tempFile)
@@ -66,7 +68,7 @@ func NewParser(clearCache bool) Parser {
 	pStr := string(pBytes)
 	parserString = pStr
 
-	return GOBDeserialize(pStr, &Parser{})
+	return GOBDeserialize(pStr, &parser)
 }
 
 // Do the parsing process or skip if cached.
@@ -91,7 +93,7 @@ func (p *Parser) Bootstrap() {
 func (p *Parser) parseTasks() {
 	var tasks taskList
 
-	if err := yaml.Unmarshal([]byte(yamlConfig), &tasks); err != nil {
+	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &tasks); err != nil {
 		log.Fatal(err)
 	}
 
@@ -127,7 +129,7 @@ func (p *Parser) parseTasks() {
 // Also sets all variables under global.environment as OS environment variables.
 func (p *Parser) parseGlobal() {
 	var g Global
-	if err := yaml.Unmarshal([]byte(yamlConfig), &g); err != nil {
+	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &g); err != nil {
 		log.Fatal(err)
 	}
 
