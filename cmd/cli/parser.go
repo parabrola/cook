@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -14,7 +13,7 @@ import (
 
 var yamlConfig = ReadYamlConfig()
 
-type command struct {
+type Task struct {
 	Files []string `yaml:"files,omitempty"`
 	Run   []string `yaml:"run"`
 }
@@ -29,47 +28,53 @@ type global struct {
 	} `yaml:"global,omitempty"`
 }
 
-type commandList map[string]command
+type taskList map[string]Task
 
 const osCommandRegexp = `\$\(([\w\d]+)\)`
 
 type Parser struct {
-	Commands  commandList
+	Commands  taskList
 	FilePaths []string
 	global
 }
 
 func (p *Parser) Bootstrap() {
 	p.parseGlobal()
-	p.parseCommands()
+	p.parseTasks()
 }
 
-// Parses the individual user defined commands in the YAML config,
+// Parses the individual user defined tasks in the YAML config,
 // and processes the dynamic parts of both "run" and "files" sections.
-func (p *Parser) parseCommands() {
-	var all commandList
+func (p *Parser) parseTasks() {
+	var tasks taskList
 
-	if err := yaml.Unmarshal([]byte(yamlConfig), &all); err != nil {
-		fmt.Println(err.Error())
+	if err := yaml.Unmarshal([]byte(yamlConfig), &tasks); err != nil {
+		log.Fatalln(err)
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
-	filePaths := []string{}
+	allFilesPaths := []string{}
 
-	for k, c := range all {
+	for k, c := range tasks {
+		filePaths := []string{}
 		for i := range c.Files {
-			p.replaceEnvironmentVariables(re, &all[k].Files[i])
-			filePaths = append(filePaths, p.expandFilePaths(all[k].Files[i])...)
+			p.replaceEnvironmentVariables(re, &tasks[k].Files[i])
+			expanded := p.expandFilePaths(tasks[k].Files[i])
+			filePaths = append(filePaths, expanded...)
+			allFilesPaths = append(allFilesPaths, expanded...)
 		}
 
+		c.Files = filePaths
+		tasks[k] = c
+
 		for i, r := range c.Run {
-			all[k].Run[i] = strings.Replace(r, "$(files)", strings.Join(c.Files, " "), -1)
-			p.replaceEnvironmentVariables(re, &all[k].Run[i])
+			tasks[k].Run[i] = strings.Replace(r, "$(files)", strings.Join(c.Files, " "), -1)
+			p.replaceEnvironmentVariables(re, &tasks[k].Run[i])
 		}
 	}
 
-	p.FilePaths = filePaths
-	p.Commands = all
+	p.FilePaths = allFilesPaths
+	p.Commands = tasks
 }
 
 // Parses the "global" key in the yaml config and adds it to the parser.

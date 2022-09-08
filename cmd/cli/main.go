@@ -9,7 +9,7 @@ func main() {
 	l := Lockfile{Files: p.FilePaths}
 	l.Bootstrap()
 
-	e := Executer{Parser: p}
+	e := NewExecuter(p, l)
 	if len(os.Args) > 1 {
 		e.Execute(os.Args[1])
 	} else {

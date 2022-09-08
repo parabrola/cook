@@ -11,7 +11,9 @@ import (
 )
 
 type Executer struct {
-	Parser Parser
+	parser   Parser
+	lockfile Lockfile
+	spinner  *yacspin.Spinner
 }
 
 var spinnerCfg = yacspin.Config{
@@ -29,53 +31,90 @@ var spinnerCfg = yacspin.Config{
 	StopFailMessage:   "Failed",
 }
 
+func NewExecuter(p Parser, l Lockfile) Executer {
+	spinner, _ := yacspin.New(spinnerCfg)
+
+	return Executer{
+		parser:   p,
+		lockfile: l,
+		spinner:  spinner,
+	}
+}
+
 // Executes all command strings under given arg.
 // Each call happens in its own go routine.
 func (e *Executer) Execute(arg string) {
-	if _, ok := e.Parser.Commands[arg]; !ok {
+	if _, ok := e.parser.Commands[arg]; !ok {
 		fmt.Printf("command '%s' not found\n", arg)
 		os.Exit(1)
 	}
 
-	spinner := e.makeSpinner()
+	task := e.parser.Commands[arg]
 
-	e.scanFiles()
-	e.dispatchCommands(arg, spinner)
-
-	spinner.Stop()
+	e.spinner.Start()
+	if e.shouldDispatch(task) {
+		e.dispatchCommands(task)
+	} else {
+		e.spinner.StopMessage("Nothing to run")
+	}
+	e.spinner.Stop()
 }
 
-func (e *Executer) scanFiles() {
-	// todo
+func (e *Executer) shouldDispatch(task Task) bool {
+	if len(task.Files) == 0 {
+		return true
+	}
+
+	dispatch := false
+	lockedModTimes := e.lockfile.GetCurrentProject()
+
+	for _, f := range task.Files {
+		fo, err := os.Stat(f)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		modTimeNow := fo.ModTime().Unix()
+		if lockedModTimes[f] < modTimeNow {
+			dispatch = true
+			break
+		}
+	}
+
+	if dispatch {
+		e.lockfile.UpdateTimestampsForFiles(task.Files)
+	}
+
+	return dispatch
 }
 
-func (e *Executer) dispatchCommands(arg string, spinner *yacspin.Spinner) {
+func (e *Executer) dispatchCommands(task Task) {
 	outputs := make(chan string)
-	for _, mainCmd := range e.Parser.Commands[arg].Run {
-		for _, beforeEachCmd := range e.Parser.Global.Events.BeforeEach {
-			go e.runSysCommand(beforeEachCmd, spinner, outputs)
+	for _, mainCmd := range task.Run {
+		for _, beforeEachCmd := range e.parser.Global.Events.BeforeEach {
+			go e.runSysCommand(beforeEachCmd, outputs)
 			fmt.Print(<-outputs)
 		}
 
-		go e.runSysCommand(mainCmd, spinner, outputs)
+		go e.runSysCommand(mainCmd, outputs)
 		fmt.Print(<-outputs)
 
-		for _, afterEachCmd := range e.Parser.Global.Events.AfterEach {
-			go e.runSysCommand(afterEachCmd, spinner, outputs)
+		for _, afterEachCmd := range e.parser.Global.Events.AfterEach {
+			go e.runSysCommand(afterEachCmd, outputs)
 			fmt.Print(<-outputs)
 		}
 	}
 }
 
 // Executes the given string in the underlying OS.
-func (e *Executer) runSysCommand(c string, spinner *yacspin.Spinner, outChan chan string) {
+func (e *Executer) runSysCommand(c string, outChan chan string) {
 	splitCmd, err := e.parseCommandLine(c)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	spinner.Message(fmt.Sprintf("Running: %s", c))
+	e.spinner.Message(fmt.Sprintf("Running: %s", c))
 	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 
 	if err != nil {
@@ -83,13 +122,6 @@ func (e *Executer) runSysCommand(c string, spinner *yacspin.Spinner, outChan cha
 	}
 
 	outChan <- "\n" + string(out) + "\n"
-}
-
-func (e *Executer) makeSpinner() *yacspin.Spinner {
-	spinner, _ := yacspin.New(spinnerCfg)
-	spinner.Start()
-
-	return spinner
 }
 
 func (e *Executer) parseCommandLine(command string) ([]string, error) {

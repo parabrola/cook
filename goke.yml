@@ -27,6 +27,7 @@ build-all:
     - "build-css"
 
 greet-cats:
+  files: [main.go, events.go, cmd/cli/*.go]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'

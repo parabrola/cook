@@ -23,7 +23,7 @@ func (l *Lockfile) Bootstrap() {
 	}
 
 	if !FileExists(lockfilePath) {
-		l.generateLockfile(nil, true)
+		l.generateLockfile(true)
 	}
 
 	currentLockFile, err := os.ReadFile(lockfilePath)
@@ -46,18 +46,18 @@ func (l *Lockfile) UpdateTimestampsForFiles(files []string) {
 	lockfileMap := l.prepareMap(files)
 	cwd, _ := os.Getwd()
 	l.JSON[cwd] = lockfileMap
-	l.generateLockfile(files, false)
-}
 
-func (l *Lockfile) generateLockfile(files []string, initialLockfile bool) {
-	if files == nil {
-		files = l.Files
+	for f := range l.JSON[cwd] {
+		l.JSON[cwd][f] = lockfileMap[f]
 	}
 
-	lockfileMap := l.prepareMap(files)
+	l.generateLockfile(false)
+}
 
+func (l *Lockfile) generateLockfile(initialLockfile bool) {
 	contents := l.JSON
 	if initialLockfile {
+		lockfileMap := l.prepareMap(l.Files)
 		cwd, _ := os.Getwd()
 		contents = lockFileJson{cwd: lockfileMap}
 	}
