@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	clearCache := len(os.Args) > 1 && os.Args[2] == "-c"
+	clearCache := len(os.Args) > 2 && os.Args[2] == "-c"
 
 	p := app.NewParser(clearCache)
 	p.Bootstrap()
