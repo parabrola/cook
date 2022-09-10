@@ -54,15 +54,15 @@ func (e *Executer) Start(taskName string) {
 	}
 
 	if e.options.Watch {
-		e.Watch(arg)
+		e.watch(arg)
 	} else {
-		e.Execute(arg)
+		e.execute(arg)
 	}
 }
 
 // Executes all command strings under given taskName.
 // Each call happens in its own go routine.
-func (e *Executer) Execute(taskName string) {
+func (e *Executer) execute(taskName string) {
 	task := e.initTask(taskName)
 	shouldDispatch, err := e.shouldDispatch(task)
 
@@ -83,7 +83,7 @@ func (e *Executer) Execute(taskName string) {
 
 // Begins an infinite loop that watches for the file changes
 // in the "files" section of the task's configuration.
-func (e *Executer) Watch(taskName string) {
+func (e *Executer) watch(taskName string) {
 	task := e.initTask(taskName)
 	wait := make(chan struct{})
 
