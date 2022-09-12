@@ -12,8 +12,16 @@ type singleProjectJson map[string]int64
 type lockFileJson map[string]singleProjectJson
 
 type Lockfile struct {
-	Files []string
+	files []string
+	os    OSWrapper
 	JSON  lockFileJson
+}
+
+func NewLockfile(files []string, os OSWrapper) Lockfile {
+	return Lockfile{
+		files: files,
+		os:    os,
+	}
 }
 
 // Loads existing lock information generates it for the first time.
@@ -27,7 +35,7 @@ func (l *Lockfile) Bootstrap() {
 		l.generateLockfile(true)
 	}
 
-	currentLockFile, err := os.ReadFile(lockfilePath)
+	currentLockFile, err := l.os.ReadFile(lockfilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +81,7 @@ func (l *Lockfile) UpdateTimestampsForFiles(files []string) error {
 func (l *Lockfile) generateLockfile(initialLockfile bool) error {
 	contents := l.JSON
 	if initialLockfile {
-		lockfileMap, err := l.prepareMap(l.Files)
+		lockfileMap, err := l.prepareMap(l.files)
 
 		if err != nil {
 			return err
@@ -138,7 +146,7 @@ func (l *Lockfile) writeLockfileRoutine(contents []byte, ch chan error) {
 		return
 	}
 
-	err = os.WriteFile(gokePath, contents, 0644)
+	err = l.os.WriteFile(gokePath, contents, 0644)
 
 	if err != nil {
 		ch <- err

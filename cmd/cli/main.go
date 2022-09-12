@@ -10,11 +10,12 @@ import (
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
+	rw := app.FileOSWrapper{}
 
-	p := app.NewParser(app.ReadYamlConfig(), &opts)
+	p := app.NewParser(app.ReadYamlConfig(), &opts, &rw) //
 	p.Bootstrap()
 
-	l := app.Lockfile{Files: p.FilePaths}
+	l := app.NewLockfile(p.FilePaths, &rw)
 	l.Bootstrap()
 
 	e := app.NewExecuter(&p, &l, &opts)

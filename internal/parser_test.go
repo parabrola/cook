@@ -44,13 +44,15 @@ var options = Options{
 	ClearCache: true,
 }
 
+var parser_rw = MemOSWrapper{}
+
 func TestNewParser(t *testing.T) {
-	parser := NewParser(yamlConfigStub, &options)
+	parser := NewParser(yamlConfigStub, &options, &parser_rw)
 	assert.NotNil(t, parser)
 }
 
 func TestTaskParsing(t *testing.T) {
-	parser := NewParser(yamlConfigStub, &options)
+	parser := NewParser(yamlConfigStub, &options, &parser_rw)
 	assert.Nil(t, parser.Tasks)
 
 	parser.parseTasks()
@@ -62,7 +64,7 @@ func TestTaskParsing(t *testing.T) {
 }
 
 func TestGlobalsParsing(t *testing.T) {
-	parser := NewParser(yamlConfigStub, &options)
+	parser := NewParser(yamlConfigStub, &options, &parser_rw)
 
 	parser.parseGlobal()
 	assert.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
@@ -71,7 +73,7 @@ func TestGlobalsParsing(t *testing.T) {
 }
 
 func TestTaskFilesExpansion(t *testing.T) {
-	parser := NewParser(yamlConfigStub, &options)
+	parser := NewParser(yamlConfigStub, &options, &parser_rw)
 
 	parser.parseTasks()
 

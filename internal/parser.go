@@ -40,27 +40,29 @@ type Parser struct {
 	Tasks      taskList
 	FilePaths  []string
 	YAMLConfig string
+	os         OSWrapper
 	Global
 }
 
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(YAMLConfig string, opts *Options) Parser {
-	tempFile := path.Join(os.TempDir(), getTempFileName())
-
-	// Clear cache if CLI flag was provided.
-	if opts.ClearCache && FileExists(tempFile) {
-		os.Remove(tempFile)
-	}
-
+func NewParser(YAMLConfig string, opts *Options, osw OSWrapper) Parser {
 	parser := Parser{}
+	parser.os = osw
 	parser.YAMLConfig = YAMLConfig
 
-	if !FileExists(tempFile) {
+	tempFile := path.Join(osw.TempDir(), parser.getTempFileName())
+
+	// Clear cache if CLI flag was provided.
+	if opts.ClearCache && osw.FileExists(tempFile) {
+		osw.Remove(tempFile)
+	}
+
+	if !osw.FileExists(tempFile) {
 		return parser
 	}
 
-	pBytes, err := os.ReadFile(tempFile)
+	pBytes, err := osw.ReadFile(tempFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func (p *Parser) Bootstrap() {
 	}
 
 	pStr := GOBSerialize(*p)
-	err = os.WriteFile(path.Join(os.TempDir(), getTempFileName()), []byte(pStr), 0644)
+	err = p.os.WriteFile(path.Join(p.os.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
 	if err != nil {
 		log.Fatal(err)
@@ -213,7 +215,7 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 	return filePaths, nil
 }
 
-func getTempFileName() string {
-	cwd, _ := os.Getwd()
+func (p *Parser) getTempFileName() string {
+	cwd, _ := p.os.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }
