@@ -134,7 +134,7 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 		return false, dispatch.Error()
 	}
 
-	if dispatch.Equal(true) {
+	if dispatch.Value() == true {
 		e.lockfile.UpdateTimestampsForFiles(task.Files)
 	}
 

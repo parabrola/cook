@@ -1,19 +1,15 @@
 package internal
 
-type Ref[T comparable] struct {
+type Ref[T any] struct {
 	value T
 	err   error
 }
 
-func NewRef[T comparable](value T, err error) Ref[T] {
+func NewRef[T any](value T, err error) Ref[T] {
 	return Ref[T]{
 		value: value,
 		err:   err,
 	}
-}
-
-func (r *Ref[T]) Equal(value T) bool {
-	return r.value == value
 }
 
 func (r *Ref[T]) Value() T {

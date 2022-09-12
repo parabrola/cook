@@ -78,11 +78,19 @@ func (p *Parser) Bootstrap() {
 		return
 	}
 
-	p.parseGlobal()
-	p.parseTasks()
-	pStr := GOBSerialize(*p)
+	err := p.parseGlobal()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	err := os.WriteFile(path.Join(os.TempDir(), getTempFileName()), []byte(pStr), 0644)
+	err = p.parseTasks()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pStr := GOBSerialize(*p)
+	err = os.WriteFile(path.Join(os.TempDir(), getTempFileName()), []byte(pStr), 0644)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,11 +98,11 @@ func (p *Parser) Bootstrap() {
 
 // Parses the individual user defined tasks in the YAML config,
 // and processes the dynamic parts of both "run" and "files" sections.
-func (p *Parser) parseTasks() {
+func (p *Parser) parseTasks() error {
 	var tasks taskList
 
 	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &tasks); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
@@ -104,7 +112,12 @@ func (p *Parser) parseTasks() {
 		filePaths := []string{}
 		for i := range c.Files {
 			p.replaceEnvironmentVariables(re, &tasks[k].Files[i])
-			expanded := p.expandFilePaths(tasks[k].Files[i])
+			expanded, err := p.expandFilePaths(tasks[k].Files[i])
+
+			if err != nil {
+				return err
+			}
+
 			filePaths = append(filePaths, expanded...)
 			allFilesPaths = append(allFilesPaths, expanded...)
 		}
@@ -123,14 +136,17 @@ func (p *Parser) parseTasks() {
 
 	p.FilePaths = allFilesPaths
 	p.Tasks = tasks
+
+	return nil
 }
 
 // Parses the "global" key in the yaml config and adds it to the parser.
 // Also sets all variables under global.environment as OS environment variables.
-func (p *Parser) parseGlobal() {
+func (p *Parser) parseGlobal() error {
 	var g Global
+
 	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &g); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
@@ -151,6 +167,8 @@ func (p *Parser) parseGlobal() {
 	}
 
 	p.Global = g
+
+	return nil
 }
 
 // Parses the interpolated system commands, ie. "Hello $(echo 'World')" and returns it.
@@ -176,13 +194,13 @@ func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 	}
 }
 
-func (p *Parser) expandFilePaths(file string) []string {
+func (p *Parser) expandFilePaths(file string) ([]string, error) {
 	filePaths := []string{}
 
 	if strings.Contains(file, "*") {
 		files, err := filepath.Glob(file)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 
 		if len(files) > 0 {
@@ -192,7 +210,7 @@ func (p *Parser) expandFilePaths(file string) []string {
 		filePaths = append(filePaths, file)
 	}
 
-	return filePaths
+	return filePaths, nil
 }
 
 func getTempFileName() string {

@@ -45,62 +45,88 @@ func (l *Lockfile) GetCurrentProject() singleProjectJson {
 }
 
 // Update timestamps for files in current project.
-func (l *Lockfile) UpdateTimestampsForFiles(files []string) {
-	lockfileMap := l.prepareMap(files)
-	cwd, _ := os.Getwd()
-	l.JSON[cwd] = lockfileMap
+func (l *Lockfile) UpdateTimestampsForFiles(files []string) error {
+	lockfileMap, err := l.prepareMap(files)
+	if err != nil {
+		return err
+	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	l.JSON[cwd] = lockfileMap
 	for f := range l.JSON[cwd] {
 		l.JSON[cwd][f] = lockfileMap[f]
 	}
 
-	l.generateLockfile(false)
+	err = l.generateLockfile(false)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Generate the lockfile file, or update it with new contents.
-func (l *Lockfile) generateLockfile(initialLockfile bool) {
+func (l *Lockfile) generateLockfile(initialLockfile bool) error {
 	contents := l.JSON
 	if initialLockfile {
-		lockfileMap := l.prepareMap(l.Files)
+		lockfileMap, err := l.prepareMap(l.Files)
+
+		if err != nil {
+			return err
+		}
+
 		cwd, _ := os.Getwd()
 		contents = lockFileJson{cwd: lockfileMap}
 	}
 
 	jsonString, err := json.MarshalIndent(contents, "", "  ")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	writeCh := make(chan error)
 	go l.writeLockfileRoutine(jsonString, writeCh)
 
 	if err = <-writeCh; err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 // Prepares the map used to populate individual project files.
-func (l *Lockfile) prepareMap(files []string) singleProjectJson {
-	lockfileMapCh := make(chan singleProjectJson)
+func (l *Lockfile) prepareMap(files []string) (singleProjectJson, error) {
+	lockfileMapCh := make(chan Ref[singleProjectJson])
 	go l.getFileModifiedMapRoutine(files, lockfileMapCh)
-	return <-lockfileMapCh
+
+	lockfileRef := <-lockfileMapCh
+
+	if lockfileRef.Error() != nil {
+		return nil, lockfileRef.Error()
+	}
+
+	return lockfileRef.Value(), nil
 }
 
 // Go routine used to dispatch file mtime checks in the background.
-func (l *Lockfile) getFileModifiedMapRoutine(files []string, ch chan singleProjectJson) {
+func (l *Lockfile) getFileModifiedMapRoutine(files []string, ch chan Ref[singleProjectJson]) {
 	lockfileMap := make(singleProjectJson)
 
 	for _, f := range files {
 		fo, err := os.Stat(f)
 
 		if err != nil {
-			log.Fatal(err)
+			ch <- NewRef[singleProjectJson](nil, err)
 		}
 
 		lockfileMap[f] = fo.ModTime().Unix()
 	}
 
-	ch <- lockfileMap
+	ch <- NewRef(lockfileMap, nil)
 }
 
 // Writes the lockfile into the filesystem.
