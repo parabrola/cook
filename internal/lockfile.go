@@ -8,19 +8,21 @@ import (
 	"path"
 )
 
-type singleProjectJson map[string]int64
-type lockFileJson map[string]singleProjectJson
+type (
+	singleProjectJson map[string]int64
+	lockFileJson      map[string]singleProjectJson
+)
 
 type Lockfile struct {
 	files []string
-	os    OSWrapper
+	std   StdlibWrapper
 	JSON  lockFileJson
 }
 
-func NewLockfile(files []string, os OSWrapper) Lockfile {
+func NewLockfile(files []string, std StdlibWrapper) Lockfile {
 	return Lockfile{
 		files: files,
-		os:    os,
+		std:   std,
 	}
 }
 
@@ -35,7 +37,7 @@ func (l *Lockfile) Bootstrap() {
 		l.generateLockfile(true)
 	}
 
-	currentLockFile, err := l.os.ReadFile(lockfilePath)
+	currentLockFile, err := l.std.ReadFile(lockfilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -146,7 +148,7 @@ func (l *Lockfile) writeLockfileRoutine(contents []byte, ch chan error) {
 		return
 	}
 
-	err = l.os.WriteFile(gokePath, contents, 0644)
+	err = l.std.WriteFile(gokePath, contents, 0644)
 
 	if err != nil {
 		ch <- err

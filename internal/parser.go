@@ -12,57 +12,59 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Task struct {
-	Name  string
-	Files []string `yaml:"files,omitempty"`
-	Run   []string `yaml:"run"`
-}
+type (
+	Task struct {
+		Name  string
+		Files []string `yaml:"files,omitempty"`
+		Run   []string `yaml:"run"`
+	}
 
-type Global struct {
-	Shared struct {
-		Environment map[string]string `yaml:"environment,omitempty"`
-		Events      struct {
-			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
-			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
-			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
-			AfterEachTask  []string `yaml:"after_each_task,omitempty"`
-		} `yaml:"events,omitempty"`
-	} `yaml:"global,omitempty"`
-}
+	Global struct {
+		Shared struct {
+			Environment map[string]string `yaml:"environment,omitempty"`
+			Events      struct {
+				BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
+				AfterEachRun   []string `yaml:"after_each_run,omitempty"`
+				BeforeEachTask []string `yaml:"before_each_task,omitempty"`
+				AfterEachTask  []string `yaml:"after_each_task,omitempty"`
+			} `yaml:"events,omitempty"`
+		} `yaml:"global,omitempty"`
+	}
 
-type taskList map[string]Task
+	Parser struct {
+		Tasks      taskList
+		FilePaths  []string
+		YAMLConfig string
+		std        StdlibWrapper
+		Global
+	}
+
+	taskList map[string]Task
+)
 
 const osCommandRegexp = `\$\(([\w\d]+)\)`
 
 var parserString string
 
-type Parser struct {
-	Tasks      taskList
-	FilePaths  []string
-	YAMLConfig string
-	os         OSWrapper
-	Global
-}
-
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(YAMLConfig string, opts *Options, osw OSWrapper) Parser {
+func NewParser(YAMLConfig string, opts *Options, std StdlibWrapper) Parser {
 	parser := Parser{}
-	parser.os = osw
+	parser.std = std
 	parser.YAMLConfig = YAMLConfig
 
-	tempFile := path.Join(osw.TempDir(), parser.getTempFileName())
+	tempFile := path.Join(std.TempDir(), parser.getTempFileName())
 
 	// Clear cache if CLI flag was provided.
-	if opts.ClearCache && osw.FileExists(tempFile) {
-		osw.Remove(tempFile)
+	if opts.ClearCache && std.FileExists(tempFile) {
+		std.Remove(tempFile)
 	}
 
-	if !osw.FileExists(tempFile) {
+	if !std.FileExists(tempFile) {
 		return parser
 	}
 
-	pBytes, err := osw.ReadFile(tempFile)
+	pBytes, err := std.ReadFile(tempFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -91,7 +93,7 @@ func (p *Parser) Bootstrap() {
 	}
 
 	pStr := GOBSerialize(*p)
-	err = p.os.WriteFile(path.Join(p.os.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
+	err = p.std.WriteFile(path.Join(p.std.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
 	if err != nil {
 		log.Fatal(err)
@@ -156,16 +158,18 @@ func (p *Parser) parseGlobal() error {
 		_, cmd := p.parseSystemCmd(re, v)
 
 		if cmd == "" {
+			g.Shared.Environment[k] = v
+			p.std.Setenv(k, v)
 			continue
 		}
 
 		out, err := exec.Command(cmd).Output()
 		if err != nil {
-			continue
+			return err
 		}
 
 		g.Shared.Environment[k] = string(out)
-		os.Setenv(k, string(out))
+		p.std.Setenv(k, string(out))
 	}
 
 	p.Global = g
@@ -216,6 +220,6 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 }
 
 func (p *Parser) getTempFileName() string {
-	cwd, _ := p.os.Getwd()
+	cwd, _ := p.std.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }

@@ -21,6 +21,11 @@ build:
   run:
     - "go build -o ./build/goke ./cmd/cli"
 
+genmocks:
+  files: [internal/stdlib_wrapper.go]
+  run:
+    - "mockery --name=StdlibWrapper --recursive --output=internal/mocks"
+
 greet-lisha:
   run:
     - "echo 'Hello Lisha!'"

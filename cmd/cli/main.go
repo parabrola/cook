@@ -10,7 +10,7 @@ import (
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
-	rw := app.FileOSWrapper{}
+	rw := app.ConcreteStdlibWrapper{}
 
 	p := app.NewParser(app.ReadYamlConfig(), &opts, &rw) //
 	p.Bootstrap()
