@@ -21,7 +21,7 @@ func ReadYamlConfig() string {
 	content, err := os.ReadFile("goke.yml")
 
 	if err != nil {
-		fmt.Println("no presence of goke sighted")
+		fmt.Println("No presence of goke.yml sighted")
 		os.Exit(1)
 	}
 
