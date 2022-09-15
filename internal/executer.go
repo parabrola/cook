@@ -235,7 +235,7 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 
 // Executes the given string in the underlying OS.
 func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
-	splitCmd, err := ParseCommandLine(c)
+	splitCmd, err := ParseCommandLine(os.ExpandEnv(c))
 
 	if err != nil {
 		ch <- NewRef("", err)
@@ -243,7 +243,6 @@ func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	}
 
 	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
-
 	if err != nil {
 		ch <- NewRef("", err)
 		return

@@ -42,7 +42,7 @@ type (
 	taskList map[string]Task
 )
 
-const osCommandRegexp = `\$\(([\w\d]+)\)`
+const osCommandRegexp = `\$\((.+)\)`
 
 var parserString string
 
@@ -163,7 +163,12 @@ func (p *Parser) parseGlobal() error {
 			continue
 		}
 
-		out, err := exec.Command(cmd).Output()
+		splitCmd, err := ParseCommandLine(os.ExpandEnv(cmd))
+		if err != nil {
+			return err
+		}
+
+		out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 		if err != nil {
 			return err
 		}

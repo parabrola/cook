@@ -1,20 +1,7 @@
 global:
   environment:
-    MY_VAR: "my var value"
-    MY_VAL: "$(ls)"
-    CSS_FILES: "styles/*.css"
-
-  events:
-    before_each_run:
-      - "echo 'before each 1'"
-      - "echo 'before each 2'"
-    after_each_run:
-      - "echo 'after each 1'"
-      - "greet-lisha"
-    before_each_task:
-      - "echo 'before task'"
-    after_each_task:
-      - "echo 'after task'"
+    LOKI: "Loki"
+    LOKI_CMD: '$(echo "$LOKI")'
 
 build: 
   files: [cmd/cli/*.go, internal/*]
@@ -26,13 +13,9 @@ genmocks:
   run:
     - "mockery --name=StdlibWrapper --recursive --output=internal/mocks"
 
-greet-lisha:
-  run:
-    - "echo 'Hello Lisha!'"
-
 greet-loki:
   run:
-    - 'echo "Hello Boki"'
+    - "echo 'Hello ${LOKI_CMD}'"
 
 greet-cats:
   files: [cmd/cli/*]
