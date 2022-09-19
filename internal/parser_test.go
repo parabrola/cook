@@ -3,9 +3,7 @@ package internal
 import (
 	"testing"
 
-	"github.com/dugajean/goke/internal/tests"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 var yamlConfigStub = `
@@ -47,17 +45,13 @@ var options = Options{
 }
 
 func TestNewParser(t *testing.T) {
-	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
-
-	parser := NewParser(yamlConfigStub, &options, mockStdlib)
+	parser := NewParser(yamlConfigStub, &options)
 	assert.NotNil(t, parser)
 }
 
 func TestTaskParsing(t *testing.T) {
-	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
-
-	parser := NewParser(yamlConfigStub, &options, mockStdlib)
-	assert.NotNil(t, parser.Tasks)
+	parser := NewParser(yamlConfigStub, &options)
+	assert.Nil(t, parser.Tasks)
 
 	parser.parseTasks()
 	assert.NotNil(t, parser.Tasks)
@@ -68,25 +62,16 @@ func TestTaskParsing(t *testing.T) {
 }
 
 func TestGlobalsParsing(t *testing.T) {
-	mockStdlib := tests.NewStdlibWrapper(t)
-	mockStdlib.On("TempDir").Return("path/to/temp")
-	mockStdlib.On("Getwd").Return("path/to/cwd", nil)
-	mockStdlib.On("FileExists", mock.Anything).Return(false)
-	mockStdlib.On("Setenv", mock.Anything, mock.Anything).Return(nil)
-
-	parser := NewParser(yamlConfigStub, &options, mockStdlib)
+	parser := NewParser(yamlConfigStub, &options)
 
 	parser.parseGlobal()
 	assert.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
 	assert.Equal(t, "bar\n", parser.Global.Shared.Environment["BAR"])
 	assert.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
-	mockStdlib.AssertNumberOfCalls(t, "Setenv", 3)
 }
 
 func TestTaskFilesExpansion(t *testing.T) {
-	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
-
-	parser := NewParser(yamlConfigStub, &options, mockStdlib)
+	parser := NewParser(yamlConfigStub, &options)
 	parser.parseTasks()
 
 	greetCatsTask := parser.Tasks["greet-cats"]
@@ -94,18 +79,9 @@ func TestTaskFilesExpansion(t *testing.T) {
 }
 
 func TestParserWithoutCache(t *testing.T) {
-	mockStdlib := tests.NewStdlibWrapper(t)
-	mockStdlib.On("TempDir").Return("path/to/temp")
-	mockStdlib.On("Getwd").Return("path/to/cwd", nil)
-	mockStdlib.On("FileExists", mock.Anything).Return(false)
-
-	parser := NewParser(yamlConfigStub, &options, mockStdlib)
+	parser := NewParser(yamlConfigStub, &options)
 	parser.parseTasks()
 
 	greetCatsTask := parser.Tasks["greet-cats"]
 	assert.NotNil(t, greetCatsTask)
-	mockStdlib.AssertExpectations(t)
-	mockStdlib.AssertNumberOfCalls(t, "TempDir", 1)
-	mockStdlib.AssertNumberOfCalls(t, "Getwd", 1)
-	mockStdlib.AssertNumberOfCalls(t, "FileExists", 2)
 }

@@ -28,18 +28,18 @@ var spinnerCfg = yacspin.Config{
 	StopFailMessage:   "Failed",
 }
 
-type Executer struct {
+type Executor struct {
 	parser   Parser
 	lockfile Lockfile
 	spinner  *yacspin.Spinner
 	options  Options
 }
 
-// Executer constructor.
-func NewExecuter(p *Parser, l *Lockfile, opts *Options) Executer {
+// Executor constructor.
+func NewExecutor(p *Parser, l *Lockfile, opts *Options) Executor {
 	spinner, _ := yacspin.New(spinnerCfg)
 
-	return Executer{
+	return Executor{
 		parser:   *p,
 		lockfile: *l,
 		spinner:  spinner,
@@ -48,7 +48,7 @@ func NewExecuter(p *Parser, l *Lockfile, opts *Options) Executer {
 }
 
 // Starts the command for a single run or as a watcher.
-func (e *Executer) Start(taskName string) {
+func (e *Executor) Start(taskName string) {
 	arg := DefaultTask
 	if taskName != "" {
 		arg = taskName
@@ -65,7 +65,7 @@ func (e *Executer) Start(taskName string) {
 
 // Executes all command strings under given taskName.
 // Each call happens in its own go routine.
-func (e *Executer) execute(taskName string) error {
+func (e *Executor) execute(taskName string) error {
 	task := e.initTask(taskName)
 	didDispatch, err := e.checkAndDispatch(task)
 
@@ -82,7 +82,7 @@ func (e *Executer) execute(taskName string) error {
 
 // Begins an infinite loop that watches for the file changes
 // in the "files" section of the task's configuration.
-func (e *Executer) watch(taskName string) {
+func (e *Executor) watch(taskName string) {
 	task := e.initTask(taskName)
 	wait := make(chan struct{})
 
@@ -101,7 +101,7 @@ func (e *Executer) watch(taskName string) {
 
 // Checks whether the task will be dispatched or not,
 // and then dispatches is true. Returns true if dispatched.
-func (e *Executer) checkAndDispatch(task Task) (bool, error) {
+func (e *Executor) checkAndDispatch(task Task) (bool, error) {
 	shouldDispatch, err := e.shouldDispatch(task)
 	if err != nil {
 		return false, err
@@ -117,7 +117,7 @@ func (e *Executer) checkAndDispatch(task Task) (bool, error) {
 }
 
 // Fetch the task from the parser based on task name.
-func (e *Executer) initTask(taskName string) Task {
+func (e *Executor) initTask(taskName string) Task {
 	e.spinner.Start()
 	e.mustExist(taskName)
 	return e.parser.Tasks[taskName]
@@ -126,7 +126,7 @@ func (e *Executer) initTask(taskName string) Task {
 // Checks whether files have changed since the last run.
 // Also updates the lockfile if files did get modified.
 // If no "files" key is present in the task, simply returns true.
-func (e *Executer) shouldDispatch(task Task) (bool, error) {
+func (e *Executor) shouldDispatch(task Task) (bool, error) {
 	if len(task.Files) == 0 {
 		return true, nil
 	}
@@ -148,7 +148,7 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 
 // Go Routine function that determines whether the stored
 // mtime is greater  than mtime if the file at this moment.
-func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
+func (e *Executor) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 	lockedModTimes := e.lockfile.GetCurrentProject()
 
 	for _, f := range task.Files {
@@ -169,7 +169,7 @@ func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 
 // Dispatches the individual commands of the current task,
 // including any events that need to be run.
-func (e *Executer) dispatchTask(task Task, initialRun bool) error {
+func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 	outputs := make(chan Ref[string])
 
 	if initialRun {
@@ -214,7 +214,7 @@ func (e *Executer) dispatchTask(task Task, initialRun bool) error {
 }
 
 // Determine what to execute: system command or another declared task in goke.yml.
-func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
+func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 	e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
 
 	if _, ok := e.parser.Tasks[cmd]; ok {
@@ -234,7 +234,7 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 }
 
 // Executes the given string in the underlying OS.
-func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
+func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
 	splitCmd, err := ParseCommandLine(os.ExpandEnv(c))
 
 	if err != nil {
@@ -251,19 +251,19 @@ func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	ch <- NewRef("\n"+string(out)+"\n", nil)
 }
 
-func (e *Executer) mustExist(taskName string) {
+func (e *Executor) mustExist(taskName string) {
 	if _, ok := e.parser.Tasks[taskName]; !ok {
 		e.log("error", fmt.Sprintf("Command '%s' not found\n", taskName))
 	}
 }
 
 // Shortcut to logging an error using spinner logger.
-func (e *Executer) logErr(err error) {
+func (e *Executor) logErr(err error) {
 	e.log("error", fmt.Sprintf("Error: %s\n", err.Error()))
 }
 
 // Log to the console using the spinner instance.
-func (e *Executer) log(status string, message string) {
+func (e *Executor) log(status string, message string) {
 	switch status {
 	default:
 	case "success":

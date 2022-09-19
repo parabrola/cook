@@ -35,7 +35,6 @@ type (
 		Tasks      taskList
 		FilePaths  []string
 		YAMLConfig string
-		std        StdlibWrapper
 		Global
 	}
 
@@ -48,23 +47,22 @@ var parserString string
 
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(YAMLConfig string, opts *Options, std StdlibWrapper) Parser {
+func NewParser(YAMLConfig string, opts *Options) Parser {
 	parser := Parser{}
-	parser.std = std
 	parser.YAMLConfig = YAMLConfig
 
-	tempFile := path.Join(std.TempDir(), parser.getTempFileName())
+	tempFile := path.Join(os.TempDir(), parser.getTempFileName())
 
 	// Clear cache if CLI flag was provided.
-	if opts.ClearCache && std.FileExists(tempFile) {
-		std.Remove(tempFile)
+	if opts.ClearCache && FileExists(tempFile) {
+		os.Remove(tempFile)
 	}
 
-	if !std.FileExists(tempFile) {
+	if !FileExists(tempFile) {
 		return parser
 	}
 
-	pBytes, err := std.ReadFile(tempFile)
+	pBytes, err := os.ReadFile(tempFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,7 +91,7 @@ func (p *Parser) Bootstrap() {
 	}
 
 	pStr := GOBSerialize(*p)
-	err = p.std.WriteFile(path.Join(p.std.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
+	err = os.WriteFile(path.Join(os.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
 	if err != nil {
 		log.Fatal(err)
@@ -130,7 +128,7 @@ func (p *Parser) parseTasks() error {
 		tasks[k] = c
 
 		for i, r := range c.Run {
-			tasks[k].Run[i] = strings.Replace(r, "$(files)", strings.Join(c.Files, " "), -1)
+			tasks[k].Run[i] = strings.Replace(r, "{FILES}", strings.Join(c.Files, " "), -1)
 			p.replaceEnvironmentVariables(re, &tasks[k].Run[i])
 		}
 
@@ -159,7 +157,7 @@ func (p *Parser) parseGlobal() error {
 
 		if cmd == "" {
 			g.Shared.Environment[k] = v
-			p.std.Setenv(k, v)
+			os.Setenv(k, v)
 			continue
 		}
 
@@ -174,7 +172,7 @@ func (p *Parser) parseGlobal() error {
 		}
 
 		g.Shared.Environment[k] = string(out)
-		p.std.Setenv(k, string(out))
+		os.Setenv(k, string(out))
 	}
 
 	p.Global = g
@@ -225,6 +223,6 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 }
 
 func (p *Parser) getTempFileName() string {
-	cwd, _ := p.std.Getwd()
+	cwd, _ := os.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }

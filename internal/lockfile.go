@@ -3,6 +3,7 @@ package internal
 import (
 	"encoding/json"
 	"log"
+	"os"
 	"os/user"
 	"path"
 )
@@ -14,14 +15,12 @@ type (
 
 type Lockfile struct {
 	files []string
-	std   StdlibWrapper
 	JSON  lockFileJson
 }
 
-func NewLockfile(files []string, std StdlibWrapper) Lockfile {
+func NewLockfile(files []string) Lockfile {
 	return Lockfile{
 		files: files,
-		std:   std,
 	}
 }
 
@@ -32,11 +31,11 @@ func (l *Lockfile) Bootstrap() {
 		log.Fatal(err)
 	}
 
-	if !l.std.FileExists(lockfilePath) {
+	if !FileExists(lockfilePath) {
 		l.generateLockfile(true)
 	}
 
-	currentLockFile, err := l.std.ReadFile(lockfilePath)
+	currentLockFile, err := os.ReadFile(lockfilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,7 +48,7 @@ func (l *Lockfile) Bootstrap() {
 
 // Returns the lock information for the current project.
 func (l *Lockfile) GetCurrentProject() singleProjectJson {
-	cwd, _ := l.std.Getwd()
+	cwd, _ := os.Getwd()
 	return l.JSON[cwd]
 }
 
@@ -60,7 +59,7 @@ func (l *Lockfile) UpdateTimestampsForFiles(files []string) error {
 		return err
 	}
 
-	cwd, err := l.std.Getwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (l *Lockfile) generateLockfile(initialLockfile bool) error {
 			return err
 		}
 
-		cwd, _ := l.std.Getwd()
+		cwd, _ := os.Getwd()
 		contents = lockFileJson{cwd: lockfileMap}
 	}
 
@@ -125,7 +124,7 @@ func (l *Lockfile) getFileModifiedMapRoutine(files []string, ch chan Ref[singleP
 	lockfileMap := make(singleProjectJson)
 
 	for _, f := range files {
-		fo, err := l.std.Stat(f)
+		fo, err := os.Stat(f)
 
 		if err != nil {
 			ch <- NewRef[singleProjectJson](nil, err)
@@ -145,7 +144,7 @@ func (l *Lockfile) writeLockfileRoutine(contents []byte, ch chan error) {
 		return
 	}
 
-	if err = l.std.WriteFile(gokePath, contents, 0644); err != nil {
+	if err = os.WriteFile(gokePath, contents, 0644); err != nil {
 		ch <- err
 		return
 	}

@@ -10,15 +10,14 @@ import (
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
-	stdlib := app.ConcreteStdlibWrapper{}
 
-	p := app.NewParser(app.ReadYamlConfig(), &opts, &stdlib) //
+	p := app.NewParser(app.ReadYamlConfig(), &opts) //
 	p.Bootstrap()
 
-	l := app.NewLockfile(p.FilePaths, &stdlib)
+	l := app.NewLockfile(p.FilePaths)
 	l.Bootstrap()
 
-	e := app.NewExecuter(&p, &l, &opts)
+	e := app.NewExecutor(&p, &l, &opts)
 	e.Start(parseTaskName(argIndex))
 }
 
