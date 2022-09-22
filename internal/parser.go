@@ -32,10 +32,11 @@ type (
 	}
 
 	Parser struct {
-		Tasks      taskList
-		FilePaths  []string
-		YAMLConfig string
-		options    Options
+		Tasks     taskList
+		FilePaths []string
+		config    string
+		options   Options
+		fs        FileSystem
 		Global
 	}
 
@@ -48,23 +49,24 @@ var parserString string
 
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(YAMLConfig string, opts *Options) Parser {
-	parser := Parser{}
-	parser.YAMLConfig = YAMLConfig
-	parser.options = *opts
+func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
+	p := Parser{}
+	p.fs = fs
+	p.config = cfg
+	p.options = *opts
 
-	tempFile := path.Join(os.TempDir(), parser.getTempFileName())
+	tempFile := path.Join(p.fs.TempDir(), p.getTempFileName())
 
 	// Clear cache if CLI flag was provided.
-	if opts.ClearCache && FileExists(tempFile) {
-		os.Remove(tempFile)
+	if opts.ClearCache && p.fs.FileExists(tempFile) {
+		p.fs.Remove(tempFile)
 	}
 
-	if !FileExists(tempFile) {
-		return parser
+	if !p.fs.FileExists(tempFile) {
+		return p
 	}
 
-	pBytes, err := os.ReadFile(tempFile)
+	pBytes, err := p.fs.ReadFile(tempFile)
 	if err != nil && !opts.Quiet {
 		log.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func NewParser(YAMLConfig string, opts *Options) Parser {
 	pStr := string(pBytes)
 	parserString = pStr
 
-	return GOBDeserialize(pStr, &parser)
+	return GOBDeserialize(pStr, &p)
 }
 
 // Do the parsing process or skip if cached.
@@ -93,7 +95,7 @@ func (p *Parser) Bootstrap() {
 	}
 
 	pStr := GOBSerialize(*p)
-	err = os.WriteFile(path.Join(os.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
+	err = p.fs.WriteFile(path.Join(p.fs.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
 	if err != nil && !p.options.Quiet {
 		log.Fatal(err)
@@ -105,7 +107,7 @@ func (p *Parser) Bootstrap() {
 func (p *Parser) parseTasks() error {
 	var tasks taskList
 
-	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &tasks); err != nil {
+	if err := yaml.Unmarshal([]byte(p.config), &tasks); err != nil {
 		return err
 	}
 
@@ -149,7 +151,7 @@ func (p *Parser) parseTasks() error {
 func (p *Parser) parseGlobal() error {
 	var g Global
 
-	if err := yaml.Unmarshal([]byte(p.YAMLConfig), &g); err != nil {
+	if err := yaml.Unmarshal([]byte(p.config), &g); err != nil {
 		return err
 	}
 
@@ -217,7 +219,7 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 		if len(files) > 0 {
 			filePaths = append(filePaths, files...)
 		}
-	} else if FileExists(file) {
+	} else if p.fs.FileExists(file) {
 		filePaths = append(filePaths, file)
 	}
 
@@ -225,6 +227,6 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 }
 
 func (p *Parser) getTempFileName() string {
-	cwd, _ := os.Getwd()
+	cwd, _ := p.fs.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }

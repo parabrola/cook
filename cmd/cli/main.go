@@ -14,10 +14,11 @@ func main() {
 
 	handleInit(opts)
 
-	p := app.NewParser(app.ReadYamlConfig(), &opts)
+	fs := app.LocalFileSystem{}
+	p := app.NewParser(app.ReadYamlConfig(), &opts, &fs)
 	p.Bootstrap()
 
-	l := app.NewLockfile(p.FilePaths, &opts)
+	l := app.NewLockfile(p.FilePaths, &opts, &fs)
 	l.Bootstrap()
 
 	e := app.NewExecutor(&p, &l, &opts)
