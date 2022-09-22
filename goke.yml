@@ -1,12 +1,12 @@
 global:
   environment:
-    LOKI: "Loki"
+    BINARY: "goke"
     LOKI_CMD: '$(echo "$LOKI")'
 
 build: 
   files: [cmd/cli/*.go, internal/*]
   run:
-    - "go build -o ./build/goke ./cmd/cli"
+    - "go build -o ./build/${BINARY} ./cmd/cli"
 
 greet-loki:
   run:

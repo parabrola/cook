@@ -118,7 +118,10 @@ func (e *Executor) checkAndDispatch(task Task) (bool, error) {
 
 // Fetch the task from the parser based on task name.
 func (e *Executor) initTask(taskName string) Task {
-	e.spinner.Start()
+	if !e.options.Quiet {
+		e.spinner.Start()
+	}
+
 	e.mustExist(taskName)
 	return e.parser.Tasks[taskName]
 }
@@ -215,7 +218,9 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 
 // Determine what to execute: system command or another declared task in goke.yml.
 func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
-	e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
+	if !e.options.Quiet {
+		e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
+	}
 
 	if _, ok := e.parser.Tasks[cmd]; ok {
 		return e.dispatchTask(e.parser.Tasks[cmd], false)
@@ -227,7 +232,9 @@ func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 			return output.Error()
 		}
 
-		fmt.Print(output.Value())
+		if !e.options.Quiet {
+			fmt.Print(output.Value())
+		}
 	}
 
 	return nil
@@ -267,12 +274,16 @@ func (e *Executor) log(status string, message string) {
 	switch status {
 	default:
 	case "success":
-		e.spinner.StopMessage(message)
-		e.spinner.Stop()
+		if !e.options.Quiet {
+			e.spinner.StopMessage(message)
+			e.spinner.Stop()
+		}
 		os.Exit(0)
 	case "error":
-		e.spinner.StopFailMessage(message)
-		e.spinner.StopFail()
+		if !e.options.Quiet {
+			e.spinner.StopFailMessage(message)
+			e.spinner.StopFail()
+		}
 		os.Exit(1)
 	}
 }

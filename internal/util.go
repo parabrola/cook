@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
+	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
-	"time"
 )
 
 type Options struct {
 	ClearCache bool
 	Watch      bool
 	Force      bool
+	Init       bool
+	Quiet      bool
 }
 
 func ReadYamlConfig() string {
@@ -152,28 +153,20 @@ func ParseCommandLine(command string) ([]string, error) {
 	return args, nil
 }
 
-type MemFileInfo struct{}
+func CreateGokeConfig() error {
+	const sampleConfig = `global:
+environment:
+  MY_BINARY: "my_binary"
 
-func (fi MemFileInfo) Name() string {
-	return "foo"
-}
+build: 
+  files: [cmd/cli/*.go, internal/*]
+  run:
+    - "go build -o ./build/${MY_BINARY} ./cmd/cli"
+`
 
-func (fi MemFileInfo) Size() int64 {
-	return 10000
-}
+	if FileExists("goke.yml") {
+		return errors.New("goke config already present in this directory")
+	}
 
-func (fi MemFileInfo) Mode() fs.FileMode {
-	return 0644
-}
-
-func (fi MemFileInfo) ModTime() time.Time {
-	return time.Date(2022, time.December, 24, 1, 1, 1, 1, time.UTC)
-}
-
-func (fi MemFileInfo) IsDir() bool {
-	return false
-}
-
-func (fi MemFileInfo) Sys() any {
-	return nil
+	return os.WriteFile("goke.yml", []byte(sampleConfig), 0644)
 }

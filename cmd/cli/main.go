@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	app "github.com/dugajean/goke/internal"
@@ -11,10 +12,12 @@ func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
 
-	p := app.NewParser(app.ReadYamlConfig(), &opts) //
+	handleInit(opts)
+
+	p := app.NewParser(app.ReadYamlConfig(), &opts)
 	p.Bootstrap()
 
-	l := app.NewLockfile(p.FilePaths)
+	l := app.NewLockfile(p.FilePaths, &opts)
 	l.Bootstrap()
 
 	e := app.NewExecutor(&p, &l, &opts)
@@ -29,4 +32,16 @@ func parseTaskName(argIndex int) string {
 	}
 
 	return arg
+}
+
+func handleInit(opts app.Options) {
+	if opts.Init {
+		err := app.CreateGokeConfig()
+
+		if err != nil && !opts.Quiet {
+			fmt.Println(err)
+		}
+
+		os.Exit(0)
+	}
 }

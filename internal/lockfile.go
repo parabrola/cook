@@ -14,20 +14,22 @@ type (
 )
 
 type Lockfile struct {
-	files []string
-	JSON  lockFileJson
+	files   []string
+	JSON    lockFileJson
+	options Options
 }
 
-func NewLockfile(files []string) Lockfile {
+func NewLockfile(files []string, opts *Options) Lockfile {
 	return Lockfile{
-		files: files,
+		files:   files,
+		options: *opts,
 	}
 }
 
 // Loads existing lock information generates it for the first time.
 func (l *Lockfile) Bootstrap() {
 	lockfilePath, err := l.getLockfilePath()
-	if err != nil {
+	if err != nil && !l.options.Quiet {
 		log.Fatal(err)
 	}
 
@@ -36,12 +38,12 @@ func (l *Lockfile) Bootstrap() {
 	}
 
 	currentLockFile, err := os.ReadFile(lockfilePath)
-	if err != nil {
+	if err != nil && !l.options.Quiet {
 		log.Fatal(err)
 	}
 
 	err = json.Unmarshal(currentLockFile, &l.JSON)
-	if err != nil {
+	if err != nil && !l.options.Quiet {
 		log.Fatal(err)
 	}
 }

@@ -35,6 +35,7 @@ type (
 		Tasks      taskList
 		FilePaths  []string
 		YAMLConfig string
+		options    Options
 		Global
 	}
 
@@ -50,6 +51,7 @@ var parserString string
 func NewParser(YAMLConfig string, opts *Options) Parser {
 	parser := Parser{}
 	parser.YAMLConfig = YAMLConfig
+	parser.options = *opts
 
 	tempFile := path.Join(os.TempDir(), parser.getTempFileName())
 
@@ -63,7 +65,7 @@ func NewParser(YAMLConfig string, opts *Options) Parser {
 	}
 
 	pBytes, err := os.ReadFile(tempFile)
-	if err != nil {
+	if err != nil && !opts.Quiet {
 		log.Fatal(err)
 	}
 
@@ -81,19 +83,19 @@ func (p *Parser) Bootstrap() {
 	}
 
 	err := p.parseGlobal()
-	if err != nil {
+	if err != nil && !p.options.Quiet {
 		log.Fatal(err)
 	}
 
 	err = p.parseTasks()
-	if err != nil {
+	if err != nil && !p.options.Quiet {
 		log.Fatal(err)
 	}
 
 	pStr := GOBSerialize(*p)
 	err = os.WriteFile(path.Join(os.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
-	if err != nil {
+	if err != nil && !p.options.Quiet {
 		log.Fatal(err)
 	}
 }
