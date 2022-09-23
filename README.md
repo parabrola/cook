@@ -70,6 +70,21 @@ Run tests with:
 go test ./internal
 ```
 
+## Releases
+Goke uses goreleaser to generate multi-platform releases.
+
+Generate a token here: https://github.com/settings/tokens/new
+
+Add as an environment variable:
+```shell
+export GITHUB_TOKEN=<TOKEN GOES HERE>
+```
+
+Run goreleaser:
+```
+curl -sfL https://goreleaser.com/static/run | bash -s -- release
+```
+
 ## Contributing
 This project started a way for me to practice Go, but then I decided to turn it into a full fledged tool that can serve everyone.
 
