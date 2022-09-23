@@ -43,11 +43,10 @@ type (
 	taskList map[string]Task
 )
 
-const osCommandRegexp = `\$\((.+)\)`
-
+var osCommandRegexp = regexp.MustCompile(`\$\((.+)\)`)
 var parserString string
 
-// Provide a parser instance which can be either a blank one,
+//NewParser Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
 func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	p := Parser{}
@@ -59,7 +58,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 
 	// Clear cache if CLI flag was provided.
 	if opts.ClearCache && p.fs.FileExists(tempFile) {
-		p.fs.Remove(tempFile)
+		_ = p.fs.Remove(tempFile)
 	}
 
 	if !p.fs.FileExists(tempFile) {
@@ -77,7 +76,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	return GOBDeserialize(pStr, &p)
 }
 
-// Do the parsing process or skip if cached.
+//Bootstrap Do the parsing process or skip if cached.
 func (p *Parser) Bootstrap() {
 	// Nothing too bootstrap if cached.
 	if parserString != "" {
@@ -111,13 +110,12 @@ func (p *Parser) parseTasks() error {
 		return err
 	}
 
-	re := regexp.MustCompile(osCommandRegexp)
-	allFilesPaths := []string{}
+	var allFilesPaths []string
 
 	for k, c := range tasks {
-		filePaths := []string{}
+		var filePaths []string
 		for i := range c.Files {
-			p.replaceEnvironmentVariables(re, &tasks[k].Files[i])
+			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Files[i])
 			expanded, err := p.expandFilePaths(tasks[k].Files[i])
 
 			if err != nil {
@@ -133,7 +131,7 @@ func (p *Parser) parseTasks() error {
 
 		for i, r := range c.Run {
 			tasks[k].Run[i] = strings.Replace(r, "{FILES}", strings.Join(c.Files, " "), -1)
-			p.replaceEnvironmentVariables(re, &tasks[k].Run[i])
+			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Run[i])
 		}
 
 		c.Name = k
@@ -155,13 +153,12 @@ func (p *Parser) parseGlobal() error {
 		return err
 	}
 
-	re := regexp.MustCompile(osCommandRegexp)
 	for k, v := range g.Shared.Environment {
-		_, cmd := p.parseSystemCmd(re, v)
+		_, cmd := p.parseSystemCmd(osCommandRegexp, v)
 
 		if cmd == "" {
 			g.Shared.Environment[k] = v
-			os.Setenv(k, v)
+			_ = os.Setenv(k, v)
 			continue
 		}
 
@@ -176,7 +173,7 @@ func (p *Parser) parseGlobal() error {
 		}
 
 		g.Shared.Environment[k] = string(out)
-		os.Setenv(k, string(out))
+		_ = os.Setenv(k, string(out))
 	}
 
 	p.Global = g
@@ -208,7 +205,7 @@ func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 }
 
 func (p *Parser) expandFilePaths(file string) ([]string, error) {
-	filePaths := []string{}
+	var filePaths []string
 
 	if strings.Contains(file, "*") {
 		files, err := filepath.Glob(file)
