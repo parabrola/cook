@@ -46,7 +46,7 @@ type (
 var osCommandRegexp = regexp.MustCompile(`\$\((.+)\)`)
 var parserString string
 
-//NewParser Provide a parser instance which can be either a blank one,
+// NewParser Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
 func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	p := Parser{}
@@ -76,7 +76,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	return GOBDeserialize(pStr, &p)
 }
 
-//Bootstrap Do the parsing process or skip if cached.
+// Bootstrap Do the parsing process or skip if cached.
 func (p *Parser) Bootstrap() {
 	// Nothing too bootstrap if cached.
 	if parserString != "" {
@@ -113,7 +113,7 @@ func (p *Parser) parseTasks() error {
 	var allFilesPaths []string
 
 	for k, c := range tasks {
-		var filePaths []string
+		filePaths := []string{}
 		for i := range c.Files {
 			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Files[i])
 			expanded, err := p.expandFilePaths(tasks[k].Files[i])
@@ -205,7 +205,7 @@ func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 }
 
 func (p *Parser) expandFilePaths(file string) ([]string, error) {
-	var filePaths []string
+	filePaths := []string{}
 
 	if strings.Contains(file, "*") {
 		files, err := filepath.Glob(file)
