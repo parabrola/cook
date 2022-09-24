@@ -28,7 +28,7 @@ func main() {
 func parseTaskName(argIndex int) string {
 	arg := ""
 
-	if len(os.Args) > (argIndex - 1) {
+	if len(os.Args) > argIndex {
 		arg = os.Args[argIndex]
 	}
 
