@@ -13,6 +13,12 @@ builds:
       - linux
       - windows
       - darwin
+brews:
+  - name: goke
+    homepage: https://github.com/dugajean/homebrew-goke
+    tap:
+      owner: dugajean
+      name: homebrew-goke
 archives:
   - replacements:
       darwin: Darwin
