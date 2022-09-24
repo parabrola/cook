@@ -92,5 +92,11 @@ I would really appreciate your contributions, either through PR’s, bug reporti
 
 For bug reports, please specify the exact steps on how to reproduce the problem.
 
+You decided to contribute? Holy s$%&, thanks! 🚀 Please run this command from the root of your fork before you write any code:
+
+```
+git config --local core.hooksPath .githooks/
+```
+
 ## License
 GNU General Public License v3.0
