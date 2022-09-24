@@ -4,7 +4,6 @@ before:
   hooks:
     - go mod tidy
     - go generate ./...
-    - go test ./internal
 builds:
   - main: ./cmd/cli
     env:
@@ -19,6 +18,7 @@ brews:
     tap:
       owner: dugajean
       name: homebrew-goke
+      token: "{{ .Env.GITHUB_TOKEN }}"
 archives:
   - replacements:
       darwin: Darwin
