@@ -10,6 +10,16 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 * And more!
 
 ## Installation
+
+#### Homebrew (Recommended)
+
+```
+brew tap dugajean/goke
+brew install goke
+```
+
+#### GitHub releases
+
 Download the appropriate executable for your system from the [releases page](https://github.com/dugajean/goke/releases).
 
 ## Example configuration (goke.yml)
