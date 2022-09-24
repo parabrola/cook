@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Ensure tests pass before committing.
+go test ./...
