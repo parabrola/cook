@@ -18,4 +18,5 @@ build/
 
 dist/
 .idea/
+.vscode/
 Footer
