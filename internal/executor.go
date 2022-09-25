@@ -74,8 +74,11 @@ func (e *Executor) execute(taskName string) error {
 	}
 
 	if !didDispatch {
-		e.log("success", "Nothing to run")
+		e.logExit("success", "Nothing to run")
 	}
+
+	e.spinner.StopMessage("Done!")
+	e.spinner.Stop()
 
 	return nil
 }
@@ -260,17 +263,17 @@ func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
 
 func (e *Executor) mustExist(taskName string) {
 	if _, ok := e.parser.Tasks[taskName]; !ok {
-		e.log("error", fmt.Sprintf("Command '%s' not found\n", taskName))
+		e.logExit("error", fmt.Sprintf("Command '%s' not found\n", taskName))
 	}
 }
 
 // Shortcut to logging an error using spinner logger.
 func (e *Executor) logErr(err error) {
-	e.log("error", fmt.Sprintf("Error: %s\n", err.Error()))
+	e.logExit("error", fmt.Sprintf("Error: %s\n", err.Error()))
 }
 
 // Log to the console using the spinner instance.
-func (e *Executor) log(status string, message string) {
+func (e *Executor) logExit(status string, message string) {
 	switch status {
 	default:
 	case "success":

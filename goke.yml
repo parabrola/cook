@@ -2,7 +2,7 @@ global:
   environment:
     BINARY: "goke"
 
-build: 
+main: 
   files: [cmd/cli/*.go, internal/*]
   run:
     - "go build -o './build/${BINARY}' ./cmd/cli"

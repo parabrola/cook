@@ -66,12 +66,16 @@ $ goke greet-loki
 $ goke greet-pepper
 ```
 
-**Available flags:**
+#### `main` task
+
+If you omit the task name and only run `goke`, it will look for a `main` task in the configuration file.
+
+#### Available flags
 
 | Flag | What it does |
 |---|---|
 | `--init` | Creates a simple `goke.yml` file in the current directory, if one doesn't already exist |
-| `--version` | Prints the current version of goke (works only with Homebrew installations) |
+| `--version` | Prints the current version of goke |
 | `--watch` | Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change |
 | `--force` | Runs the given command regardless whether the files under `files:` have changed |
 | `--no-cache` | Goke caches the given configuration to speed up execution and avoid parsing the configuration on every run. Clear the cache if you are changing your configuration |
@@ -82,21 +86,6 @@ Goke has some unit test coverage. PR’s are welcome to add more tests.
 Run tests with:
 ```
 go test ./internal
-```
-
-## Releases
-Goke uses goreleaser to generate multi-platform releases.
-
-Generate a token here: https://github.com/settings/tokens/new
-
-Add as an environment variable:
-```shell
-export GITHUB_TOKEN=<TOKEN GOES HERE>
-```
-
-Run goreleaser:
-```
-curl -sfL https://goreleaser.com/static/run | bash -s -- release
 ```
 
 ## Contributing
