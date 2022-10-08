@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 
-# Basic lint check
+echo "Basic lint check"
+echo "..."
 go vet ./...
 
-# Ensure tests pass before committing.
+echo "Run formatter"
+echo "..."
+gofmt -l .
+
+echo "Check if stuff is tidy"
+echo "..."
+go mod tidy
+git diff --exit-code -- go.mod go.sum
+
+echo "Ensure tests pass before committing"
+echo "..."
 go test ./...
