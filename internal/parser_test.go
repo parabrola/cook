@@ -42,7 +42,13 @@ greet-cats:
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'
-    - "greet-loki"`
+    - "greet-loki"
+
+greet-thor:
+  run:
+    - 'echo "Hello ${THOR}"'
+  env:
+    THOR: "LORD OF THUNDER"`
 
 var clearCacheOpts = Options{
 	ClearCache: true,
@@ -151,4 +157,27 @@ func TestTaskGlobFilesExpansion(t *testing.T) {
 	greetCatsTask := parser.Tasks["greet-cats"]
 
 	require.Equal(t, expectedGlob, greetCatsTask.Files)
+}
+
+func TestSetEnvVariables(t *testing.T) {
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+
+	values := map[string]string{
+		"THOR":     "Lord of thunder",
+		"THOR_CMD": "$(echo 'Hello Thor')",
+	}
+
+	want := map[string]string{
+		"THOR":     "Lord of thunder",
+		"THOR_CMD": "Hello Thor",
+	}
+
+	got, _ := parser.setEnvVariables(values)
+	require.Equal(t, want["THOR"], os.Getenv("THOR"))
+	require.Equal(t, want["THOR_CMD"], os.Getenv("THOR_CMD"))
+
+	for k := range got {
+		require.Equal(t, want[k], got[k])
+	}
 }

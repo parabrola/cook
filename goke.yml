@@ -16,3 +16,6 @@ greet-cats:
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Bunny"'
+    - 'echo "Hello ${CAT}"'
+  env:
+    CAT: "Kitty"
