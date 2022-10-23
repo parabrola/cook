@@ -25,7 +25,7 @@ Download the appropriate executable for your system from the [releases page](htt
 ## Example configuration (goke.yml)
 ```
 global:
-  environment:
+  env:
     FOO: "foo"
     BAR: "$(echo 'BAR')"
     BAZ: "$(FOO)"
@@ -54,8 +54,10 @@ greet-cats:
   files: [cmd/cli/*]
   run:
     - "echo 'Hello Frey'"
-    - "echo 'Hello Sunny'"
+    - "echo 'Hello ${CAT}'"
     - "greet-loki"
+  env:
+    CAT: "Sunny"
 ```
 
 ## Running commands
