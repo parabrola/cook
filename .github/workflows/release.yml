@@ -8,8 +8,15 @@ permissions:
   contents: read
 
 jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cat internal/options.go | grep $GITHUB_REF_NAME
+
   test:
     runs-on: ubuntu-latest
+    needs: version-check
     steps:
     - uses: actions/setup-go@v3
       with:
