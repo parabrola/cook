@@ -7,7 +7,7 @@ import (
 	"github.com/docopt/docopt-go"
 )
 
-const CURRENT_VERSION = "0.2.2"
+const CURRENT_VERSION = "0.2.6"
 
 const usage = `Goke
 
