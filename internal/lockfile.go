@@ -2,7 +2,6 @@ package internal
 
 import (
 	"encoding/json"
-	"log"
 	"os/user"
 	"path"
 )
@@ -27,26 +26,28 @@ func NewLockfile(files []string, opts *Options, fs FileSystem) Lockfile {
 	}
 }
 
-// Loads existing lock information generates it for the first time.
-func (l *Lockfile) Bootstrap() {
+func (l *Lockfile) Bootstrap() error {
 	lockfilePath, err := l.getLockfilePath()
-	if err != nil && !l.options.Quiet {
-		log.Fatal(err)
+	if err != nil {
+		return err
 	}
 
 	if !l.fs.FileExists(lockfilePath) {
-		l.generateLockfile(true)
+		if err := l.generateLockfile(true); err != nil {
+			return err
+		}
 	}
 
 	currentLockFile, err := l.fs.ReadFile(lockfilePath)
-	if err != nil && !l.options.Quiet {
-		log.Fatal(err)
+	if err != nil {
+		return err
 	}
 
-	err = json.Unmarshal(currentLockFile, &l.JSON)
-	if err != nil && !l.options.Quiet {
-		log.Fatal(err)
+	if err := json.Unmarshal(currentLockFile, &l.JSON); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 // Returns the lock information for the current project.
@@ -131,6 +132,7 @@ func (l *Lockfile) getFileModifiedMapRoutine(files []string, ch chan Ref[singleP
 
 		if err != nil {
 			ch <- NewRef[singleProjectJson](nil, err)
+			return
 		}
 
 		lockfileMap[f] = fo.ModTime().Unix()

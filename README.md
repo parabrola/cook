@@ -5,74 +5,158 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 
 * Uses YAML to declare build configurations, instead of the Makefile syntax
 * Built in Go, making it a blazing fast, multi-threaded tool
+* Task dependencies with automatic parallel execution
+* File watching with OS-level filesystem events
 * Support for global hooks
 * Intuitive environment variable declaration at any position in the configuration
-* And more!
 
 ## Installation
 
 #### Homebrew (Recommended)
 
 ```
-brew tap dugajean/goke
+brew tap parabrola/goke
 brew install goke
 ```
 
 #### GitHub releases
 
-Download the appropriate executable for your system from the [releases page](https://github.com/dugajean/goke/releases).
+Download the appropriate executable for your system from the [releases page](https://github.com/parabrola/goke/releases).
 
 ## Example configuration (goke.yml)
-```
+```yaml
 global:
-  env:
-    FOO: "foo"
-    BAR: "$(echo 'BAR')"
-    BAZ: "$(FOO)"
-    LOKI: "Loki"
+  environment:
+    APP_NAME: "myapp"
+    VERSION: "$(git describe --tags --always)"
+    GOFLAGS: "-trimpath"
 
   events:
-    before_each_run:
-      - "echo 'This will run before each command in a given task'"
-    after_each_run:
-      - "echo 'This will run after each command in a given task'"
-      - "greet-pepper"
     before_each_task:
-      - "echo 'This will run once before the given task'"
-    after_each_task:
-      - "echo 'This will run once after the given task'"
+      - "echo '==> Starting task'"
 
-greet-pepper:
+clean:
   run:
-    - "echo 'Hello Pepper'"
+    - "rm -rf ./build ./dist ./coverage.out"
 
-greet-loki:
+generate:
+  files: [internal/*.go]
   run:
-    - "echo 'Hello ${LOKI}'"
+    - "go generate ./..."
 
-greet-cats:
-  files: [cmd/cli/*]
+lint:
+  depends_on: [generate]
+  files: [cmd/**/*.go, internal/**/*.go]
   run:
-    - "echo 'Hello Frey'"
-    - "echo 'Hello ${CAT}'"
-    - "greet-loki"
+    - "golangci-lint run ./..."
+
+test:
+  depends_on: [generate]
+  files: [internal/*_test.go]
+  run:
+    - "go test -race -coverprofile=coverage.out ./..."
+
+build:
+  depends_on: [lint, test]
+  files: [cmd/cli/*.go, internal/*.go]
+  run:
+    - "go build -ldflags '-s -w -X main.version=${VERSION}' -o ./build/${APP_NAME} ./cmd/cli"
+
+docker:
+  depends_on: [build]
+  run:
+    - "docker build -t ${APP_NAME}:${VERSION} ."
+
+deploy-staging:
+  depends_on: [docker]
+  run:
+    - "kubectl set image deployment/${APP_NAME} app=${APP_NAME}:${VERSION} -n staging"
   env:
-    CAT: "Sunny"
+    KUBECONFIG: "~/.kube/staging.yaml"
+
+dev:
+  files: [cmd/**/*.go, internal/**/*.go]
+  run:
+    - "go build -o ./build/${APP_NAME} ./cmd/cli"
+    - "./build/${APP_NAME}"
 ```
 
 ## Running commands
-From your project directory, you can now issue the following commands with the configuration shown above:
+From your project directory, you can now issue commands with the configuration shown above:
 ```
+$ goke test
 $ goke greet-cats
 $ goke greet-loki
-$ goke greet-pepper
 ```
 
 #### `main` task
 
 If you omit the task name and only run `goke`, it will look for a `main` task in the configuration file.
 
-#### Available flags
+## Task dependencies
+
+Use `depends_on` to declare that a task requires other tasks to complete first:
+
+```yaml
+test:
+  depends_on: [compile, lint]
+  run:
+    - "go test ./..."
+```
+
+Dependencies that don't depend on each other run in parallel automatically. In the example above, `compile` and `lint` both depend on `clean` but not on each other, so they run concurrently after `clean` finishes.
+
+Each dependency runs at most once per invocation, even if multiple tasks depend on it (diamond dependency deduplication).
+
+Circular dependencies are detected at parse time and will produce an error.
+
+## File watching
+
+Use the `-w` flag to watch for file changes and re-run the task automatically:
+
+```
+$ goke test -w
+```
+
+The `files` key specifies which files to monitor. Goke uses OS-level filesystem events (kqueue on macOS, inotify on Linux) for instant detection with zero CPU overhead when idle.
+
+## Environment variables
+
+Environment variables can be declared globally or per-task:
+
+```yaml
+global:
+  environment:
+    MY_VAR: "hello"
+    DYNAMIC: "$(echo 'computed at parse time')"
+
+my-task:
+  run:
+    - "echo ${MY_VAR}"
+  env:
+    LOCAL_VAR: "only available in this task"
+```
+
+Use `${VAR}` to reference environment variables in commands, and `$(command)` to capture command output.
+
+## Events
+
+Global hooks that run before/after tasks and individual commands:
+
+```yaml
+global:
+  events:
+    before_each_task:
+      - "echo 'starting task'"
+    after_each_task:
+      - "echo 'task complete'"
+    before_each_run:
+      - "echo 'before each command'"
+    after_each_run:
+      - "echo 'after each command'"
+```
+
+## Available flags
 
 ```
 -h --help      Show help screen
@@ -87,21 +171,18 @@ If you omit the task name and only run `goke`, it will look for a `main` task in
 ```
 
 ## Tests
-Goke has some unit test coverage. PR’s are welcome to add more tests.
 
 Run tests with:
 ```
-go test ./internal
+go test ./...
 ```
 
 ## Contributing
-This project started a way for me to practice Go, but then I decided to turn it into a full fledged tool that can serve everyone.
-
-I would really appreciate your contributions, either through PR’s, bug reporting, feature requests, etc.
+I would really appreciate your contributions, either through PR's, bug reporting, feature requests, etc.
 
 For bug reports, please specify the exact steps on how to reproduce the problem.
 
-You decided to contribute? Holy s$%&, thanks! 🚀 Please run this command from the root of your fork before you write any code:
+You decided to contribute? Please run this command from the root of your fork before you write any code:
 
 ```
 git config --local core.hooksPath .githooks/

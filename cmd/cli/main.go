@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
-	app "github.com/dugajean/goke/internal"
+	app "github.com/parabrola/goke/internal"
 )
 
 func main() {
 	opts := app.NewCliOptions()
 
-	// Global options that don't require parser instance.
 	handleGlobalOptions(&opts, nil)
 
 	cfg, err := app.ReadYamlConfig()
@@ -20,21 +21,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Wrappers
 	fs := app.LocalFileSystem{}
 	proc := app.ShellProcess{}
 
-	// Main components
 	p := app.NewParser(cfg, &opts, &fs)
-	p.Bootstrap()
+	if err := p.Bootstrap(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
-	// Global options that require parser instance.
 	handleGlobalOptions(&opts, &p)
 
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
-	l.Bootstrap()
+	if err := l.Bootstrap(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
 	e := app.NewExecutor(&p, &l, &opts, &proc, &fs, &ctx)
 	e.Start(opts.TaskName)
 }

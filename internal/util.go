@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -59,43 +58,35 @@ build:
 
 func FileExists(filename string) bool {
 	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
+	if err != nil {
 		return false
 	}
 	return !info.IsDir()
 }
 
-// Serialize a struct
 func GOBSerialize[T any](structInstance T) string {
 	b := bytes.Buffer{}
 	e := gob.NewEncoder(&b)
-	err := e.Encode(structInstance)
-
-	if err != nil {
-		log.Fatal("failed gob encode", err)
+	if err := e.Encode(structInstance); err != nil {
+		return ""
 	}
-
 	return base64.StdEncoding.EncodeToString(b.Bytes())
 }
 
-// Deserialize a struct
-func GOBDeserialize[T any](structStr string, structShell *T) T {
+func GOBDeserialize[T any](structStr string, structShell *T) (T, error) {
 	by, err := base64.StdEncoding.DecodeString(structStr)
-
 	if err != nil {
-		log.Fatal("failed base64 decode", err)
+		return *structShell, fmt.Errorf("failed base64 decode: %w", err)
 	}
 
 	b := bytes.Buffer{}
 	b.Write(by)
 	d := gob.NewDecoder(&b)
-	err = d.Decode(structShell)
-
-	if err != nil {
-		log.Fatal("failed gob decode", err)
+	if err = d.Decode(structShell); err != nil {
+		return *structShell, fmt.Errorf("failed gob decode: %w", err)
 	}
 
-	return *structShell
+	return *structShell, nil
 }
 
 func JoinInnerArgs(args []string) string {

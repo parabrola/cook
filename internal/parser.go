@@ -1,18 +1,18 @@
 package internal
 
 import (
-	"log"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/dugajean/goke/internal/cli"
+	"github.com/parabrola/goke/internal/cli"
 	"gopkg.in/yaml.v3"
 )
 
 type Parseable interface {
-	Bootstrap()
+	Bootstrap() error
 	GetGlobal() *Global
 	GetTask(string) (Task, bool)
 	GetFilePaths() []string
@@ -24,10 +24,11 @@ type Parseable interface {
 }
 
 type Task struct {
-	Name  string
-	Files []string          `yaml:"files,omitempty"`
-	Run   []string          `yaml:"run"`
-	Env   map[string]string `yaml:"env,omitempty"`
+	Name      string
+	Files     []string          `yaml:"files,omitempty"`
+	Run       []string          `yaml:"run"`
+	Env       map[string]string `yaml:"env,omitempty"`
+	DependsOn []string          `yaml:"depends_on,omitempty"`
 }
 
 type Global struct {
@@ -75,40 +76,42 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parseable {
 	}
 
 	pBytes, err := p.fs.ReadFile(tempFile)
-	if err != nil && !opts.Quiet {
-		log.Fatal(err)
+	if err != nil {
+		_ = p.fs.Remove(tempFile)
+		return &p
 	}
 
 	pStr := string(pBytes)
-	parserString = pStr
+	deserialized, err := GOBDeserialize(pStr, &p)
+	if err != nil {
+		_ = p.fs.Remove(tempFile)
+		return &p
+	}
 
-	p = GOBDeserialize(pStr, &p)
+	p = deserialized
+	parserString = pStr
 	return &p
 }
 
 // Bootstrap does the parsing process or skip if cached.
-func (p *parser) Bootstrap() {
-	// Nothing too bootstrap if cached.
+func (p *parser) Bootstrap() error {
 	if parserString != "" {
-		return
+		p.restoreEnv()
+		return nil
 	}
 
-	err := p.parseGlobal()
-	if err != nil && !p.options.Quiet {
-		log.Fatal(err)
+	if err := p.parseGlobal(); err != nil {
+		return err
 	}
 
-	err = p.parseTasks()
-	if err != nil && !p.options.Quiet {
-		log.Fatal(err)
+	if err := p.parseTasks(); err != nil {
+		return err
 	}
 
 	pStr := GOBSerialize(p)
-	err = p.fs.WriteFile(path.Join(p.fs.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
+	_ = p.fs.WriteFile(path.Join(p.fs.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
-	if err != nil && !p.options.Quiet {
-		log.Fatal(err)
-	}
+	return nil
 }
 
 func (p *parser) GetGlobal() *Global {
@@ -122,6 +125,17 @@ func (p *parser) GetTask(taskName string) (Task, bool) {
 
 func (p *parser) GetFilePaths() []string {
 	return p.FilePaths
+}
+
+func (p *parser) restoreEnv() {
+	for k, v := range p.Global.Shared.Env {
+		os.Setenv(k, v)
+	}
+	for _, task := range p.Tasks {
+		for k, v := range task.Env {
+			os.Setenv(k, v)
+		}
+	}
 }
 
 // Parses the individual user defined tasks in the YAML config,
@@ -153,7 +167,7 @@ func (p *parser) parseTasks() error {
 		tasks[k] = c
 
 		for i, r := range c.Run {
-			tasks[k].Run[i] = strings.Replace(r, "{FILES}", strings.Join(c.Files, " "), -1)
+			tasks[k].Run[i] = strings.ReplaceAll(r, "{FILES}", strings.Join(c.Files, " "))
 			cli.ReplaceEnvironmentVariables(osCommandRegexp, &tasks[k].Run[i])
 		}
 
@@ -169,6 +183,10 @@ func (p *parser) parseTasks() error {
 	}
 
 	delete(tasks, "global")
+
+	if err := ValidateDependencies(tasks); err != nil {
+		return err
+	}
 
 	p.FilePaths = allFilesPaths
 	p.Tasks = tasks
@@ -187,7 +205,7 @@ func (p *parser) parseGlobal() error {
 
 	vars, err := cli.SetEnvVariables(g.Shared.Env)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	g.Shared.Env = vars
@@ -219,7 +237,7 @@ func (p *parser) expandFilePaths(file string) ([]string, error) {
 // Retrieves the temp file name
 func (p *parser) getTempFileName() string {
 	cwd, _ := p.fs.Getwd()
-	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
+	return "goke-" + strings.ReplaceAll(cwd, string(filepath.Separator), "-")
 }
 
 // Determines whether the parser cache should be cleaned or not

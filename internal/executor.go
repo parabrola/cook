@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sync"
 	"time"
 
-	"github.com/dugajean/goke/internal/cli"
+	"github.com/fsnotify/fsnotify"
+	"github.com/parabrola/goke/internal/cli"
 	"github.com/theckman/yacspin"
 )
 
@@ -31,13 +34,15 @@ var spinnerCfg = yacspin.Config{
 }
 
 type Executor struct {
-	parser   Parseable
-	lockfile Lockfile
-	spinner  *yacspin.Spinner
-	options  Options
-	process  Process
-	fs       FileSystem
-	context  context.Context
+	parser    Parseable
+	lockfile  Lockfile
+	spinner   *yacspin.Spinner
+	options   Options
+	process   Process
+	fs        FileSystem
+	context   context.Context
+	completed sync.Map
+	mu        sync.Mutex
 }
 
 // Executor constructor.
@@ -57,6 +62,8 @@ func NewExecutor(p *Parseable, l *Lockfile, opts *Options, proc Process, fs File
 
 // Starts the command for a single run or as a watcher.
 func (e *Executor) Start(taskName string) {
+	e.completed = sync.Map{}
+
 	arg := DefaultTask
 	if taskName != "" {
 		arg = taskName
@@ -97,34 +104,80 @@ func (e *Executor) execute(taskName string) error {
 // in the "files" section of the task's configuration.
 func (e *Executor) watch(taskName string) error {
 	task := e.initTask(taskName)
-	wait := make(chan struct{})
 
 	if len(task.Files) == 0 {
 		return errors.New("task has no files to watch")
 	}
 
-	for {
-		if e.context.Err() != nil {
-			break
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	// Watch the directories containing the tracked files,
+	// since watching individual files can miss editor save patterns
+	// (editors often write to a temp file then rename).
+	dirs := make(map[string]struct{})
+	for _, f := range task.Files {
+		dir := filepath.Dir(f)
+		dirs[dir] = struct{}{}
+	}
+	for dir := range dirs {
+		if err := watcher.Add(dir); err != nil {
+			return err
 		}
-
-		go func(ch chan struct{}) {
-			e.checkAndDispatch(task)
-			e.spinner.Message("Watching for file changes...")
-
-			time.Sleep(time.Second)
-
-			select {
-			case ch <- struct{}{}:
-			case <-e.context.Done():
-				return
-			}
-		}(wait)
-
-		<-wait
 	}
 
-	return nil
+	// Build a set for fast lookup of tracked files.
+	tracked := make(map[string]struct{}, len(task.Files))
+	for _, f := range task.Files {
+		abs, err := filepath.Abs(f)
+		if err != nil {
+			continue
+		}
+		tracked[abs] = struct{}{}
+	}
+
+	// Run once on startup.
+	if _, err := e.checkAndDispatch(task); err != nil {
+		e.logErr(err)
+	}
+
+	e.spinner.Message("Watching for file changes...")
+
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return nil
+			}
+
+			abs, _ := filepath.Abs(event.Name)
+			if _, isTracked := tracked[abs]; !isTracked {
+				continue
+			}
+
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
+				continue
+			}
+
+			if _, err := e.checkAndDispatch(task); err != nil {
+				e.logErr(err)
+			}
+
+			e.spinner.Message("Watching for file changes...")
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return nil
+			}
+			return err
+
+		case <-e.context.Done():
+			return nil
+		}
+	}
 }
 
 // Checks whether the task will be dispatched or not,
@@ -187,6 +240,7 @@ func (e *Executor) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 		fo, err := e.fs.Stat(f)
 		if err != nil {
 			ch <- NewRef(false, err)
+			return
 		}
 
 		modTimeNow := fo.ModTime().Unix()
@@ -200,17 +254,63 @@ func (e *Executor) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 	ch <- NewRef(false, nil)
 }
 
+func (e *Executor) executeDependencies(task Task) error {
+	if len(task.DependsOn) == 0 {
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(task.DependsOn))
+
+	for _, depName := range task.DependsOn {
+		if _, loaded := e.completed.LoadOrStore(depName, true); loaded {
+			continue
+		}
+
+		depTask, ok := e.parser.GetTask(depName)
+		if !ok {
+			return fmt.Errorf("dependency '%s' not found", depName)
+		}
+
+		wg.Add(1)
+		go func(dt Task) {
+			defer wg.Done()
+
+			if err := e.executeDependencies(dt); err != nil {
+				errCh <- err
+				return
+			}
+
+			if err := e.dispatchTask(dt, false); err != nil {
+				errCh <- err
+			}
+		}(depTask)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Dispatches the individual commands of the current task,
 // including any events that need to be run.
 func (e *Executor) dispatchTask(task Task, initialRun bool) error {
-	outputs := make(chan Ref[string])
+	if err := e.executeDependencies(task); err != nil {
+		return err
+	}
+
 	global := e.parser.GetGlobal()
 
 	if initialRun {
 		for _, beforeEachCmd := range global.Shared.Events.BeforeEachTask {
-			err := e.runSysOrRecurse(beforeEachCmd, &outputs)
-
-			if err != nil {
+			if err := e.runSysOrRecurse(beforeEachCmd); err != nil {
 				return err
 			}
 		}
@@ -219,19 +319,19 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 	for _, mainCmd := range task.Run {
 		if initialRun {
 			for _, beforeEachCmd := range global.Shared.Events.BeforeEachRun {
-				if err := e.runSysOrRecurse(beforeEachCmd, &outputs); err != nil {
+				if err := e.runSysOrRecurse(beforeEachCmd); err != nil {
 					return err
 				}
 			}
 		}
 
-		if err := e.runSysOrRecurse(mainCmd, &outputs); err != nil {
+		if err := e.runSysOrRecurse(mainCmd); err != nil {
 			return err
 		}
 
 		if initialRun {
 			for _, afterEachCmd := range global.Shared.Events.AfterEachRun {
-				if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
+				if err := e.runSysOrRecurse(afterEachCmd); err != nil {
 					return err
 				}
 			}
@@ -239,7 +339,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 	}
 
 	for _, afterEachCmd := range global.Shared.Events.AfterEachTask {
-		if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
+		if err := e.runSysOrRecurse(afterEachCmd); err != nil {
 			return err
 		}
 	}
@@ -248,7 +348,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 }
 
 // Determine what to execute: system command or another declared task in goke.yml.
-func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
+func (e *Executor) runSysOrRecurse(cmd string) error {
 	if !e.options.Quiet {
 		message := cmd
 		if len(e.options.Args) > 0 {
@@ -260,40 +360,31 @@ func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 
 	if task, ok := e.parser.GetTask(cmd); ok {
 		return e.dispatchTask(task, false)
-	} else {
-		go e.runSysCommand(cmd, *ch)
-		output := <-*ch
-
-		if output.Error() != nil {
-			return output.Error()
-		}
-
-		if !e.options.Quiet {
-			e.process.Fprint(os.Stdout, output.Value())
-		}
 	}
 
-	return nil
+	e.mu.Lock()
+	if !e.options.Quiet {
+		e.spinner.Pause()
+		fmt.Fprintln(os.Stderr)
+	}
+	err := e.runSysCommand(cmd)
+	if !e.options.Quiet {
+		e.spinner.Unpause()
+	}
+	e.mu.Unlock()
+
+	return err
 }
 
 // Executes the given string in the underlying OS.
-func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
+func (e *Executor) runSysCommand(c string) error {
 	splitCmd, err := cli.ParseCommandLine(os.ExpandEnv(c))
-
 	if err != nil {
-		ch <- NewRef("", err)
-		return
+		return err
 	}
 
 	wholeCmd := append(splitCmd[1:], e.options.Args...)
-	out, err := e.process.Execute(splitCmd[0], wholeCmd...)
-
-	if err != nil {
-		ch <- NewRef("", err)
-		return
-	}
-
-	ch <- NewRef("\n"+string(out)+"\n", nil)
+	return e.process.Execute(splitCmd[0], wholeCmd...)
 }
 
 func (e *Executor) mustExist(taskName string) {

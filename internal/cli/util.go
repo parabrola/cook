@@ -127,6 +127,6 @@ func ReplaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 	raw, env := parseSystemCmd(re, resolved)
 
 	if raw != "" && env != "" {
-		*str = strings.Replace(resolved, raw, os.Getenv(env), -1)
+		*str = strings.ReplaceAll(resolved, raw, os.Getenv(env))
 	}
 }

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseSystemCmd(t *testing.T) {
-
 	cmds := []string{
 		"$(echo 'Hello Thor')",
 		"hello world",
@@ -24,11 +24,9 @@ func TestParseSystemCmd(t *testing.T) {
 		assert.Equal(t, want[i][0], got0, "expected "+want[i][0]+", got ", got0)
 		assert.Equal(t, want[i][1], got1, "expected "+want[i][1]+", got ", got1)
 	}
-
 }
 
 func TestSetEnvVariables(t *testing.T) {
-
 	values := map[string]string{
 		"THOR":     "Lord of thunder",
 		"THOR_CMD": "$(echo 'Hello Thor')",
@@ -48,8 +46,46 @@ func TestSetEnvVariables(t *testing.T) {
 	}
 }
 
-func TestParseCommandLine(t *testing.T) {
-	t.Skip()
+func TestParseCommandLineSimple(t *testing.T) {
+	args, err := ParseCommandLine("echo hello world")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"echo", "hello", "world"}, args)
+}
+
+func TestParseCommandLineDoubleQuotes(t *testing.T) {
+	args, err := ParseCommandLine(`echo "hello world" foo`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"echo", "hello world", "foo"}, args)
+}
+
+func TestParseCommandLineSingleQuotes(t *testing.T) {
+	args, err := ParseCommandLine("echo 'hello world' foo")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"echo", "hello world", "foo"}, args)
+}
+
+func TestParseCommandLineEscapedCharacters(t *testing.T) {
+	args, err := ParseCommandLine(`echo hello\ world`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"echo", "hello world"}, args)
+}
+
+func TestParseCommandLineUnclosedQuote(t *testing.T) {
+	_, err := ParseCommandLine(`echo "hello world`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unclosed quote")
+}
+
+func TestParseCommandLineEmpty(t *testing.T) {
+	args, err := ParseCommandLine("")
+	require.NoError(t, err)
+	assert.Empty(t, args)
+}
+
+func TestParseCommandLineMultipleTabs(t *testing.T) {
+	args, err := ParseCommandLine("echo\t\thello\tworld")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"echo", "hello", "world"}, args)
 }
 
 func TestReplaceEnvironmentVariables(t *testing.T) {
@@ -68,4 +104,13 @@ func TestReplaceEnvironmentVariables(t *testing.T) {
 	ReplaceEnvironmentVariables(osEnvRegexp, &str)
 
 	assert.Equal(t, want, str, "wrong env value is injected")
+}
+
+func TestReplaceEnvironmentVariablesNoMatch(t *testing.T) {
+	str := "no variables here"
+	original := str
+
+	ReplaceEnvironmentVariables(osEnvRegexp, &str)
+
+	assert.Equal(t, original, str)
 }

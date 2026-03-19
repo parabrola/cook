@@ -5,7 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dugajean/goke/internal/tests"
+	"github.com/parabrola/goke/internal/tests"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -119,4 +120,94 @@ func TestTaskGlobFilesExpansion(t *testing.T) {
 	greetCatsTask, _ := parser.GetTask("greet-cats")
 
 	require.Equal(t, tests.ExpectedGlob, greetCatsTask.Files)
+}
+
+func TestGetTaskNotFound(t *testing.T) {
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
+
+	parser.parseTasks()
+
+	_, ok := parser.GetTask("nonexistent")
+	assert.False(t, ok)
+}
+
+func TestFilesPlaceholderReplacement(t *testing.T) {
+	config := `
+my-task:
+  files: [cmd/cli/*]
+  run:
+    - "go vet {FILES}"
+`
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return([]string{"cmd/cli/main.go", "cmd/cli/util.go"}, nil)
+	parser := NewParser(config, &clearCacheOpts, fsMock)
+
+	parser.parseTasks()
+	task, ok := parser.GetTask("my-task")
+
+	assert.True(t, ok)
+	assert.Contains(t, task.Run[0], "cmd/cli/main.go")
+	assert.Contains(t, task.Run[0], "cmd/cli/util.go")
+	assert.NotContains(t, task.Run[0], "{FILES}")
+}
+
+func TestTaskEnvVariables(t *testing.T) {
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
+
+	parser.parseTasks()
+	task, ok := parser.GetTask("greet-thor")
+
+	assert.True(t, ok)
+	assert.Equal(t, "LORD OF THUNDER", os.Getenv("THOR"))
+	assert.Equal(t, "LORD OF THUNDER", task.Env["THOR"])
+}
+
+func TestParseTasksRejectsCyclicDependencies(t *testing.T) {
+	config := `
+a:
+  depends_on: [b]
+  run:
+    - "echo a"
+
+b:
+  depends_on: [a]
+  run:
+    - "echo b"
+`
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(config, &clearCacheOpts, fsMock)
+
+	err := parser.parseTasks()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "circular dependency")
+}
+
+func TestParseTasksRejectsMissingDependency(t *testing.T) {
+	config := `
+a:
+  depends_on: [nonexistent]
+  run:
+    - "echo a"
+`
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(config, &clearCacheOpts, fsMock)
+
+	err := parser.parseTasks()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown task")
+}
+
+func TestGlobalKeyExcludedFromTasks(t *testing.T) {
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
+
+	parser.parseTasks()
+
+	_, ok := parser.GetTask("global")
+	assert.False(t, ok)
 }

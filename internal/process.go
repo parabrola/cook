@@ -8,15 +8,18 @@ import (
 )
 
 type Process interface {
-	Execute(name string, args ...string) ([]byte, error)
+	Execute(name string, args ...string) error
 	Fprint(w io.Writer, a ...any) (n int, err error)
 	Exit(code int)
 }
 
 type ShellProcess struct{}
 
-func (sp *ShellProcess) Execute(name string, args ...string) ([]byte, error) {
-	return exec.Command(name, args...).Output()
+func (sp *ShellProcess) Execute(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func (sp *ShellProcess) Fprint(w io.Writer, a ...any) (n int, err error) {

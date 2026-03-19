@@ -1,11 +1,38 @@
 global:
-  env:
+  environment:
     BINARY: "goke"
+    VERSION: "$(git describe --tags --always)"
 
-main: 
-  files: [cmd/cli/*.go, internal/*]
+  events:
+    before_each_task:
+      - "echo '==> Task starting'"
+    after_each_task:
+      - "echo '==> Task complete'"
+
+clean:
   run:
-    - "go build -o './build/${BINARY}' ./cmd/cli"
+    - "echo 'Cleaning build artifacts...'"
+
+vet:
+  files: [cmd/cli/*.go, internal/*.go]
+  run:
+    - "echo 'Running go vet...'"
+
+test:
+  files: [internal/*_test.go, internal/cli/*_test.go]
+  run:
+    - "echo 'Running tests...'"
+
+build:
+  depends_on: [clean, vet, test]
+  files: [cmd/cli/*.go, internal/*.go]
+  run:
+    - "echo 'Building ${BINARY} ${VERSION}...'"
+
+main:
+  depends_on: [build]
+  run:
+    - "echo 'Running ${BINARY}...'"
 
 genmocks:
   files: [internal/filesystem.go, internal/process.go]

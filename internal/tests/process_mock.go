@@ -14,7 +14,7 @@ type Process struct {
 }
 
 // Execute provides a mock function with given fields: name, args
-func (_m *Process) Execute(name string, args ...string) ([]byte, error) {
+func (_m *Process) Execute(name string, args ...string) error {
 	_va := make([]interface{}, len(args))
 	for _i := range args {
 		_va[_i] = args[_i]
@@ -24,23 +24,14 @@ func (_m *Process) Execute(name string, args ...string) ([]byte, error) {
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(string, ...string) []byte); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, ...string) error); ok {
 		r0 = rf(name, args...)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, ...string) error); ok {
-		r1 = rf(name, args...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // Exit provides a mock function with given fields: code
