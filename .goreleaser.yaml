@@ -12,14 +12,32 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
     ldflags:
       - -s -w -X github.com/parabrola/goke/internal.CURRENT_VERSION={{.Version}}
 brews:
   - name: goke
-    homepage: https://github.com/parabrola/homebrew-goke
+    homepage: https://github.com/parabrola/goke
+    description: "Build automation tool using YAML"
     tap:
       owner: parabrola
       name: homebrew-goke
+scoops:
+  - bucket:
+      owner: parabrola
+      name: scoop-goke
+    homepage: https://github.com/parabrola/goke
+    description: "Build automation tool using YAML"
+nfpms:
+  - package_name: goke
+    homepage: https://github.com/parabrola/goke
+    maintainer: Parabrola <noreply@parabrola.com>
+    description: "Build automation tool using YAML"
+    formats:
+      - deb
+      - rpm
 archives:
   - replacements:
       darwin: Darwin

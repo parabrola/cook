@@ -12,16 +12,45 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 
 ## Installation
 
-#### Homebrew (Recommended)
+#### Homebrew (macOS/Linux)
 
 ```
 brew tap parabrola/goke
 brew install goke
 ```
 
+#### Scoop (Windows)
+
+```
+scoop bucket add goke https://github.com/parabrola/scoop-goke
+scoop install goke
+```
+
+#### deb (Debian/Ubuntu)
+
+Download the `.deb` file from the [releases page](https://github.com/parabrola/goke/releases), then:
+
+```
+sudo dpkg -i goke_*.deb
+```
+
+#### rpm (Fedora/RHEL)
+
+Download the `.rpm` file from the [releases page](https://github.com/parabrola/goke/releases), then:
+
+```
+sudo rpm -i goke_*.rpm
+```
+
+#### Go install
+
+```
+go install github.com/parabrola/goke/cmd/cli@latest
+```
+
 #### GitHub releases
 
-Download the appropriate executable for your system from the [releases page](https://github.com/parabrola/goke/releases).
+Download the appropriate binary for your system from the [releases page](https://github.com/parabrola/goke/releases).
 
 ## Example configuration (goke.yml)
 ```yaml
