@@ -50,6 +50,12 @@ release:create:
   run:
     - "gh release create ${RELEASE_VERSION} --title ${RELEASE_VERSION} --notes '' --draft"
 
+spinner:
+  run:
+    - "sleep 1"
+    - "sleep 1"
+    - "sleep 1"
+
 greet-cats:
   run:
     - 'echo "Hello Frey"'

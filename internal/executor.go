@@ -365,7 +365,6 @@ func (e *Executor) runSysOrRecurse(cmd string) error {
 	e.mu.Lock()
 	if !e.options.Quiet {
 		e.spinner.Pause()
-		fmt.Fprintln(os.Stderr)
 	}
 	err := e.runSysCommand(cmd)
 	if !e.options.Quiet {
