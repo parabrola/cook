@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	github.com/theckman/yacspin v0.13.12
 	gopkg.in/yaml.v3 v3.0.1

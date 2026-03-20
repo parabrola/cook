@@ -97,6 +97,8 @@ func TestTaskParsing(t *testing.T) {
 
 func TestGlobalsParsing(t *testing.T) {
 	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("FileExists", ".env").Return(false)
+	fsMock.On("FileExists", ".env.local").Return(false)
 	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseGlobal()

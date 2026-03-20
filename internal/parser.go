@@ -33,8 +33,9 @@ type Task struct {
 
 type Global struct {
 	Shared struct {
-		Env    map[string]string `yaml:"environment,omitempty"`
-		Events struct {
+		EnvFile []string          `yaml:"env_file,omitempty"`
+		Env     map[string]string `yaml:"environment,omitempty"`
+		Events  struct {
 			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
 			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
 			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
@@ -200,6 +201,10 @@ func (p *parser) parseGlobal() error {
 	var g Global
 
 	if err := yaml.Unmarshal([]byte(p.config), &g); err != nil {
+		return err
+	}
+
+	if err := LoadDotenvFiles(g.Shared.EnvFile, p.fs); err != nil {
 		return err
 	}
 

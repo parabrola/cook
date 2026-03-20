@@ -9,6 +9,7 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 * File watching with OS-level filesystem events
 * Support for global hooks
 * Intuitive environment variable declaration at any position in the configuration
+* Automatic `.env` file loading
 
 ## Installation
 
@@ -167,6 +168,25 @@ my-task:
 ```
 
 Use `${VAR}` to reference environment variables in commands, and `$(command)` to capture command output.
+
+### `.env` file support
+
+Goke automatically loads `.env` files if they exist in your project directory:
+
+1. `.env` — shared defaults
+2. `.env.local` — personal overrides (should be gitignored)
+
+Later files override earlier ones. You can also specify additional files explicitly:
+
+```yaml
+global:
+  env_file:
+    - .env.production
+  environment:
+    APP_URL: "${BASE_URL}/api"
+```
+
+Explicit files listed in `env_file` are loaded after the defaults, and must exist or Goke will return an error. Variables from `.env` files are available for use in `environment`, `run`, and `files` sections.
 
 ## Events
 
