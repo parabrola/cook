@@ -15,23 +15,23 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X github.com/parabrola/goke/internal.CURRENT_VERSION={{.Version}}
+      - -s -w -X github.com/parabrola/cook/internal.CURRENT_VERSION={{.Version}}
 homebrew_casks:
-  - name: goke
-    homepage: https://github.com/parabrola/goke
+  - name: cook
+    homepage: https://github.com/parabrola/cook
     description: "Build automation tool using YAML"
     repository:
       owner: parabrola
-      name: homebrew-goke
+      name: homebrew-cook
 scoops:
   - repository:
       owner: parabrola
-      name: scoop-goke
-    homepage: https://github.com/parabrola/goke
+      name: scoop-cook
+    homepage: https://github.com/parabrola/cook
     description: "Build automation tool using YAML"
 nfpms:
-  - package_name: goke
-    homepage: https://github.com/parabrola/goke
+  - package_name: cook
+    homepage: https://github.com/parabrola/cook
     maintainer: Parabrola <noreply@parabrola.com>
     description: "Build automation tool using YAML"
     formats:

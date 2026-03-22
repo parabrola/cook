@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-func GokeFiles() []string {
-	return []string{"goke.yml", "goke.yaml"}
+func CookFiles() []string {
+	return []string{"cook.yml", "cook.yaml", "cook.json"}
 }
 
 func CurrentConfigFile() string {
-	for _, f := range GokeFiles() {
+	for _, f := range CookFiles() {
 		if FileExists(f) {
 			return f
 		}
@@ -24,8 +24,8 @@ func CurrentConfigFile() string {
 	return ""
 }
 
-func ReadYamlConfig() (string, error) {
-	for _, f := range GokeFiles() {
+func ReadConfig() (string, error) {
+	for _, f := range CookFiles() {
 		content, err := os.ReadFile(f)
 
 		if err == nil && len(content) > 0 {
@@ -33,10 +33,10 @@ func ReadYamlConfig() (string, error) {
 		}
 	}
 
-	return "", errors.New("no presence of goke.yml sighted")
+	return "", errors.New("no cook config file found (cook.yml, cook.yaml, or cook.json)")
 }
 
-func CreateGokeConfig() error {
+func CreateCookConfig() error {
 	const sampleConfig = `global:
 environment:
   MY_BINARY: "my_binary"
@@ -47,13 +47,13 @@ build:
     - "go build -o ./build/${MY_BINARY} ./cmd/cli"
 `
 
-	for _, f := range GokeFiles() {
+	for _, f := range CookFiles() {
 		if FileExists(f) {
 			return fmt.Errorf("%s already present in this directory", f)
 		}
 	}
 
-	return os.WriteFile("goke.yml", []byte(sampleConfig), 0644)
+	return os.WriteFile("cook.yml", []byte(sampleConfig), 0644)
 }
 
 func FileExists(filename string) bool {

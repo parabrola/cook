@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/parabrola/goke/internal/tests"
+	"github.com/parabrola/cook/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -201,6 +201,74 @@ a:
 	err := parser.parseTasks()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown task")
+}
+
+func TestJSONTaskParsing(t *testing.T) {
+	config := `{
+  "global": {
+    "environment": {
+      "FOO": "bar"
+    }
+  },
+  "greet": {
+    "run": ["echo hello"]
+  },
+  "build": {
+    "files": ["cmd/cli/*"],
+    "depends_on": ["greet"],
+    "run": ["go build ./..."]
+  }
+}`
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return([]string{"cmd/cli/main.go"}, nil)
+	fsMock.On("FileExists", ".env").Return(false)
+	fsMock.On("FileExists", ".env.local").Return(false)
+	parser := NewParser(config, &clearCacheOpts, fsMock)
+
+	err := parser.parseGlobal()
+	require.NoError(t, err)
+
+	err = parser.parseTasks()
+	require.NoError(t, err)
+
+	greet, ok := parser.GetTask("greet")
+	assert.True(t, ok)
+	assert.Equal(t, []string{"echo hello"}, greet.Run)
+
+	build, ok := parser.GetTask("build")
+	assert.True(t, ok)
+	assert.Equal(t, []string{"go build ./..."}, build.Run)
+	assert.Equal(t, []string{"greet"}, build.DependsOn)
+	assert.Equal(t, []string{"cmd/cli/main.go"}, build.Files)
+}
+
+func TestJSONSchemaKeyExcludedFromTasks(t *testing.T) {
+	config := `{
+  "$schema": "cook.schema.json",
+  "greet": {
+    "run": ["echo hello"]
+  }
+}`
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(config, &clearCacheOpts, fsMock)
+
+	err := parser.parseTasks()
+	require.NoError(t, err)
+
+	_, ok := parser.GetTask("$schema")
+	assert.False(t, ok)
+
+	greet, ok := parser.GetTask("greet")
+	assert.True(t, ok)
+	assert.Equal(t, []string{"echo hello"}, greet.Run)
+}
+
+func TestLooksLikeJSON(t *testing.T) {
+	assert.True(t, looksLikeJSON(`{"foo": "bar"}`))
+	assert.True(t, looksLikeJSON(`  { "foo": "bar" }`))
+	assert.False(t, looksLikeJSON(`global:`))
+	assert.False(t, looksLikeJSON(`foo: bar`))
+	assert.False(t, looksLikeJSON(``))
 }
 
 func TestGlobalKeyExcludedFromTasks(t *testing.T) {

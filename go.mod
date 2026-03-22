@@ -1,4 +1,4 @@
-module github.com/parabrola/goke
+module github.com/parabrola/cook
 
 go 1.25.0
 

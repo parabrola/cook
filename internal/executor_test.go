@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parabrola/goke/internal/tests"
+	"github.com/parabrola/cook/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ func getDependencies(t *testing.T, opts *Options) (*Parseable, *Lockfile, *tests
 	fsMock.On("FileExists", mock.Anything).Return(false)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotCookFile), nil)
 	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
 
 	process := tests.NewProcess(t)
@@ -192,7 +192,7 @@ func getDependenciesWithConfig(t *testing.T, opts *Options, yamlConfig string) (
 	fsMock.On("FileExists", mock.Anything).Return(false)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotCookFile), nil)
 
 	process := tests.NewProcess(t)
 

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/parabrola/goke/internal/tests"
+	"github.com/parabrola/cook/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

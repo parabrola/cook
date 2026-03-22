@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	app "github.com/parabrola/goke/internal"
+	app "github.com/parabrola/cook/internal"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 
 	handleGlobalOptions(&opts, nil)
 
-	cfg, err := app.ReadYamlConfig()
+	cfg, err := app.ReadConfig()
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

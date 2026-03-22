@@ -1,6 +1,6 @@
 global:
   environment:
-    BINARY: "goke"
+    BINARY: "cook"
     VERSION: "$(git describe --tags --always)"
 
   events:

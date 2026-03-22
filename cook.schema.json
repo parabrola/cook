@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/parabrola/cook/blob/main/cook.schema.json",
+  "title": "Cook Configuration",
+  "description": "Configuration file for cook, a build automation tool.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path or URL to the cook JSON schema."
+    },
+    "global": {
+      "type": "object",
+      "description": "Global configuration shared across all tasks.",
+      "properties": {
+        "env_file": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of additional .env files to load."
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Environment variables available to all tasks. Values support $(command) substitution."
+        },
+        "events": {
+          "type": "object",
+          "description": "Lifecycle hooks that run around tasks and commands.",
+          "properties": {
+            "before_each_run": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Commands to run before each command in a task."
+            },
+            "after_each_run": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Commands to run after each command in a task."
+            },
+            "before_each_task": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Commands to run before each task starts."
+            },
+            "after_each_task": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Commands to run after each task completes."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/task"
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "description": "A named task containing commands to execute.",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File glob patterns to watch. Use {FILES} in run commands to reference expanded paths."
+        },
+        "run": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Commands to execute. Supports ${VAR} environment variables and $(command) substitution."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Task-scoped environment variables."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tasks that must complete before this task runs. Dependencies run in parallel when possible."
+        }
+      },
+      "required": ["run"],
+      "additionalProperties": false
+    }
+  }
+}

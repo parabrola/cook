@@ -143,13 +143,13 @@ func (l *Lockfile) getFileModifiedMapRoutine(files []string, ch chan Ref[singleP
 
 // Writes the lockfile into the filesystem.
 func (l *Lockfile) writeLockfileRoutine(contents []byte, ch chan error) {
-	gokePath, err := l.getLockfilePath()
+	cookPath, err := l.getLockfilePath()
 	if err != nil {
 		ch <- err
 		return
 	}
 
-	if err = l.fs.WriteFile(gokePath, contents, 0644); err != nil {
+	if err = l.fs.WriteFile(cookPath, contents, 0644); err != nil {
 		ch <- err
 		return
 	}
@@ -164,5 +164,5 @@ func (l *Lockfile) getLockfilePath() (string, error) {
 		return "", err
 	}
 
-	return path.Join(user.HomeDir, ".goke"), nil
+	return path.Join(user.HomeDir, ".cook"), nil
 }

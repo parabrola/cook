@@ -9,19 +9,19 @@ import (
 
 var CURRENT_VERSION = "dev"
 
-const usage = `Goke
+const usage = `Cook
 
 Usage:
-  goke [<task>] [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
-  goke -i | --init
-  goke -h | --help
-  goke -v | --version
-  goke -t | --tasks [-c|--no-cache]
+  cook [<task>] [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
+  cook -i | --init
+  cook -h | --help
+  cook -v | --version
+  cook -t | --tasks [-c|--no-cache]
 
 Options:
   -h --help      Show this screen
   -v --version   Show version
-  -i --init      Creates a goke.yaml file in the current directory
+  -i --init      Creates a cook.yaml file in the current directory
   -t --tasks     Outputs a list of all task names
   -w --watch     Run task in watch mode
   -c --no-cache  Clears the program's cache
@@ -71,14 +71,14 @@ func (opts Options) Handlers(p *Parseable) []OptionHandler {
 	return handlers
 }
 
-// initHandler creates goke.yaml if it doesn't exist.
+// initHandler creates cook.yaml if it doesn't exist.
 // Can be invoked via the -i option.
 func (opts Options) initHandler(p *Parseable) (int, error) {
 	if !opts.Init {
 		return -1, nil
 	}
 
-	err := CreateGokeConfig()
+	err := CreateCookConfig()
 	if err != nil && !opts.Quiet {
 		return 1, err
 	}
@@ -86,7 +86,7 @@ func (opts Options) initHandler(p *Parseable) (int, error) {
 	return 0, nil
 }
 
-// tasksHandler outputs a list of all tasks in the current goke.yaml file.
+// tasksHandler outputs a list of all tasks in the current cook.yaml file.
 // Can be invoked via the -t option.
 func (opts Options) tasksHandler(p *Parseable) (int, error) {
 	if !opts.Tasks {

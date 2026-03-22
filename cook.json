@@ -1,0 +1,59 @@
+{
+  "$schema": "cook.schema.json",
+  "global": {
+    "environment": {
+      "BINARY": "cook",
+      "VERSION": "$(git describe --tags --always)"
+    },
+    "events": {
+      "before_each_task": ["echo '==> Task starting'"],
+      "after_each_task": ["echo '==> Task complete'"]
+    }
+  },
+  "clean": {
+    "run": ["echo 'Cleaning build artifacts...'"]
+  },
+  "vet": {
+    "files": ["cmd/cli/*.go", "internal/*.go"],
+    "run": ["echo 'Running go vet...'"]
+  },
+  "test": {
+    "files": ["internal/*_test.go", "internal/cli/*_test.go"],
+    "run": ["echo 'Running tests...'"]
+  },
+  "build": {
+    "depends_on": ["clean", "vet", "test"],
+    "files": ["cmd/cli/*.go", "internal/*.go"],
+    "run": ["echo 'Building ${BINARY} ${VERSION}...'"]
+  },
+  "main": {
+    "depends_on": ["build"],
+    "run": ["echo 'Running ${BINARY}...'"]
+  },
+  "genmocks": {
+    "files": ["internal/filesystem.go", "internal/process.go"],
+    "run": [
+      "mockery --name=FileSystem --recursive --output=internal/tests --outpkg=tests --filename=filesystem_mock.go",
+      "mockery --name=Process --recursive --output=internal/tests --outpkg=tests --filename=process_mock.go"
+    ]
+  },
+  "release:delete": {
+    "run": [
+      "gh release delete ${RELEASE_VERSION} --yes",
+      "git tag -d ${RELEASE_VERSION}",
+      "git push origin :refs/tags/${RELEASE_VERSION}"
+    ]
+  },
+  "release:create": {
+    "run": ["gh release create ${RELEASE_VERSION} --title ${RELEASE_VERSION} --notes '' --draft"]
+  },
+  "spinner": {
+    "run": ["sleep 1", "sleep 1", "sleep 1"]
+  },
+  "greet-cats": {
+    "run": ["echo \"Hello Frey\"", "echo \"Hello Bunny\"", "echo \"Hello ${CAT}\""],
+    "env": {
+      "CAT": "Kitty"
+    }
+  }
+}

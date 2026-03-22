@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	app "github.com/parabrola/goke/internal"
+	app "github.com/parabrola/cook/internal"
 )
 
 // handleGlobalOptions executes the global options logic.

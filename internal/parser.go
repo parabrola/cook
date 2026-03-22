@@ -1,13 +1,14 @@
 package internal
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/parabrola/goke/internal/cli"
+	"github.com/parabrola/cook/internal/cli"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,32 +26,46 @@ type Parseable interface {
 
 type Task struct {
 	Name      string
-	Files     []string          `yaml:"files,omitempty"`
-	Run       []string          `yaml:"run"`
-	Env       map[string]string `yaml:"env,omitempty"`
-	DependsOn []string          `yaml:"depends_on,omitempty"`
+	Files     []string          `yaml:"files,omitempty" json:"files,omitempty"`
+	Run       []string          `yaml:"run" json:"run"`
+	Env       map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	DependsOn []string          `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 }
 
 type Global struct {
 	Shared struct {
-		EnvFile []string          `yaml:"env_file,omitempty"`
-		Env     map[string]string `yaml:"environment,omitempty"`
+		EnvFile []string          `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+		Env     map[string]string `yaml:"environment,omitempty" json:"environment,omitempty"`
 		Events  struct {
-			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
-			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
-			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
-			AfterEachTask  []string `yaml:"after_each_task,omitempty"`
-		} `yaml:"events,omitempty"`
-	} `yaml:"global,omitempty"`
+			BeforeEachRun  []string `yaml:"before_each_run,omitempty" json:"before_each_run,omitempty"`
+			AfterEachRun   []string `yaml:"after_each_run,omitempty" json:"after_each_run,omitempty"`
+			BeforeEachTask []string `yaml:"before_each_task,omitempty" json:"before_each_task,omitempty"`
+			AfterEachTask  []string `yaml:"after_each_task,omitempty" json:"after_each_task,omitempty"`
+		} `yaml:"events,omitempty" json:"events,omitempty"`
+	} `yaml:"global,omitempty" json:"global,omitempty"`
 }
 
 type parser struct {
 	Tasks     taskList
 	FilePaths []string
 	config    string
+	isJSON    bool
 	options   Options
 	fs        FileSystem
 	Global
+}
+
+// looksLikeJSON returns true if the config content appears to be JSON.
+func looksLikeJSON(cfg string) bool {
+	return len(strings.TrimSpace(cfg)) > 0 && strings.TrimSpace(cfg)[0] == '{'
+}
+
+// unmarshal dispatches to JSON or YAML based on the config file format.
+func (p *parser) unmarshal(data []byte, v any) error {
+	if p.isJSON {
+		return json.Unmarshal(data, v)
+	}
+	return yaml.Unmarshal(data, v)
 }
 
 type taskList map[string]Task
@@ -64,6 +79,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parseable {
 	p := parser{}
 	p.fs = fs
 	p.config = cfg
+	p.isJSON = looksLikeJSON(cfg)
 	p.options = *opts
 
 	tempFile := path.Join(p.fs.TempDir(), p.getTempFileName())
@@ -139,12 +155,40 @@ func (p *parser) restoreEnv() {
 	}
 }
 
-// Parses the individual user defined tasks in the YAML config,
+// unmarshalTasks unmarshals the config into a taskList, handling JSON's
+// $schema key which is a string (not a task object) and would cause a type error.
+func (p *parser) unmarshalTasks(data []byte) (taskList, error) {
+	if p.isJSON {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil, err
+		}
+		delete(raw, "$schema")
+		delete(raw, "global")
+
+		tasks := make(taskList)
+		for k, v := range raw {
+			var t Task
+			if err := json.Unmarshal(v, &t); err != nil {
+				return nil, err
+			}
+			tasks[k] = t
+		}
+		return tasks, nil
+	}
+
+	var tasks taskList
+	if err := yaml.Unmarshal(data, &tasks); err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+// Parses the individual user defined tasks in the config,
 // and processes the dynamic parts of both "run" and "files" sections.
 func (p *parser) parseTasks() error {
-	var tasks taskList
-
-	if err := yaml.Unmarshal([]byte(p.config), &tasks); err != nil {
+	tasks, err := p.unmarshalTasks([]byte(p.config))
+	if err != nil {
 		return err
 	}
 
@@ -200,7 +244,7 @@ func (p *parser) parseTasks() error {
 func (p *parser) parseGlobal() error {
 	var g Global
 
-	if err := yaml.Unmarshal([]byte(p.config), &g); err != nil {
+	if err := p.unmarshal([]byte(p.config), &g); err != nil {
 		return err
 	}
 
@@ -242,7 +286,7 @@ func (p *parser) expandFilePaths(file string) ([]string, error) {
 // Retrieves the temp file name
 func (p *parser) getTempFileName() string {
 	cwd, _ := p.fs.Getwd()
-	return "goke-" + strings.ReplaceAll(cwd, string(filepath.Separator), "-")
+	return "cook-" + strings.ReplaceAll(cwd, string(filepath.Separator), "-")
 }
 
 // Determines whether the parser cache should be cleaned or not

@@ -1,5 +1,5 @@
-# Goke
-Goke is a build automation tool, similar to Make, but without the Makefile clutter.
+# Cook
+Cook is a build automation tool, similar to Make, but without the Makefile clutter.
 
 ## What makes it different:
 
@@ -16,44 +16,44 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 #### Homebrew (macOS/Linux)
 
 ```
-brew tap parabrola/goke
-brew install goke
+brew tap parabrola/cook
+brew install cook
 ```
 
 #### Scoop (Windows)
 
 ```
-scoop bucket add goke https://github.com/parabrola/scoop-goke
-scoop install goke
+scoop bucket add cook https://github.com/parabrola/scoop-cook
+scoop install cook
 ```
 
 #### deb (Debian/Ubuntu)
 
-Download the `.deb` file from the [releases page](https://github.com/parabrola/goke/releases), then:
+Download the `.deb` file from the [releases page](https://github.com/parabrola/cook/releases), then:
 
 ```
-sudo dpkg -i goke_*.deb
+sudo dpkg -i cook_*.deb
 ```
 
 #### rpm (Fedora/RHEL)
 
-Download the `.rpm` file from the [releases page](https://github.com/parabrola/goke/releases), then:
+Download the `.rpm` file from the [releases page](https://github.com/parabrola/cook/releases), then:
 
 ```
-sudo rpm -i goke_*.rpm
+sudo rpm -i cook_*.rpm
 ```
 
 #### Go install
 
 ```
-go install github.com/parabrola/goke/cmd/cli@latest
+go install github.com/parabrola/cook/cmd/cli@latest
 ```
 
 #### GitHub releases
 
-Download the appropriate binary for your system from the [releases page](https://github.com/parabrola/goke/releases).
+Download the appropriate binary for your system from the [releases page](https://github.com/parabrola/cook/releases).
 
-## Example configuration (goke.yml)
+## Example configuration (cook.yml)
 ```yaml
 global:
   environment:
@@ -114,14 +114,14 @@ dev:
 ## Running commands
 From your project directory, you can now issue commands with the configuration shown above:
 ```
-$ goke test
-$ goke greet-cats
-$ goke greet-loki
+$ cook test
+$ cook greet-cats
+$ cook greet-loki
 ```
 
 #### `main` task
 
-If you omit the task name and only run `goke`, it will look for a `main` task in the configuration file.
+If you omit the task name and only run `cook`, it will look for a `main` task in the configuration file.
 
 ## Task dependencies
 
@@ -145,10 +145,10 @@ Circular dependencies are detected at parse time and will produce an error.
 Use the `-w` flag to watch for file changes and re-run the task automatically:
 
 ```
-$ goke test -w
+$ cook test -w
 ```
 
-The `files` key specifies which files to monitor. Goke uses OS-level filesystem events (kqueue on macOS, inotify on Linux) for instant detection with zero CPU overhead when idle.
+The `files` key specifies which files to monitor. Cook uses OS-level filesystem events (kqueue on macOS, inotify on Linux) for instant detection with zero CPU overhead when idle.
 
 ## Environment variables
 
@@ -171,7 +171,7 @@ Use `${VAR}` to reference environment variables in commands, and `$(command)` to
 
 ### `.env` file support
 
-Goke automatically loads `.env` files if they exist in your project directory:
+Cook automatically loads `.env` files if they exist in your project directory:
 
 1. `.env` — shared defaults
 2. `.env.local` — personal overrides (should be gitignored)
@@ -186,7 +186,7 @@ global:
     APP_URL: "${BASE_URL}/api"
 ```
 
-Explicit files listed in `env_file` are loaded after the defaults, and must exist or Goke will return an error. Variables from `.env` files are available for use in `environment`, `run`, and `files` sections.
+Explicit files listed in `env_file` are loaded after the defaults, and must exist or Cook will return an error. Variables from `.env` files are available for use in `environment`, `run`, and `files` sections.
 
 ## Events
 
@@ -210,7 +210,7 @@ global:
 ```
 -h --help      Show help screen
 -v --version   Show version
--i --init      Creates a goke.yaml file in the current directory
+-i --init      Creates a cook.yaml file in the current directory
 -t --tasks     Outputs a list of all task names
 -w --watch     Run task in watch mode
 -c --no-cache  Clears the program's cache

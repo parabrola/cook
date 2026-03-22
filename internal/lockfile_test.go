@@ -3,7 +3,7 @@ package internal
 import (
 	"testing"
 
-	"github.com/parabrola/goke/internal/tests"
+	"github.com/parabrola/cook/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -15,7 +15,7 @@ var lockfileOpts = Options{
 	NoCache: true,
 }
 
-var dotGokeFile = `{
+var dotCookFile = `{
   "/path/to/project1": {
     "path/to/file": 1664738433
   },
@@ -60,7 +60,7 @@ func TestGenerateLockfileWithFalse(t *testing.T) {
 func TestBootstrapLoadsExistingLockfile(t *testing.T) {
 	fsMock := tests.NewFileSystem(t)
 	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotCookFile), nil)
 
 	lockfile := NewLockfile(files, &lockfileOpts, fsMock)
 	require.NoError(t, lockfile.Bootstrap())
@@ -74,7 +74,7 @@ func TestGetCurrentProject(t *testing.T) {
 	fsMock := tests.NewFileSystem(t)
 	fsMock.On("Getwd").Return("/path/to/project1", nil)
 	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotCookFile), nil)
 
 	lockfile := NewLockfile(files, &lockfileOpts, fsMock)
 	require.NoError(t, lockfile.Bootstrap())
@@ -88,7 +88,7 @@ func TestUpdateTimestampsForFiles(t *testing.T) {
 	fsMock := tests.NewFileSystem(t)
 	fsMock.On("Getwd").Return("/path/to/project1", nil)
 	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotCookFile), nil)
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

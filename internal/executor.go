@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/parabrola/goke/internal/cli"
+	"github.com/parabrola/cook/internal/cli"
 	"github.com/theckman/yacspin"
 )
 
@@ -347,7 +347,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 	return nil
 }
 
-// Determine what to execute: system command or another declared task in goke.yml.
+// Determine what to execute: system command or another declared task in cook.yml.
 func (e *Executor) runSysOrRecurse(cmd string) error {
 	if !e.options.Quiet {
 		message := cmd
